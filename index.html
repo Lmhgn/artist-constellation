@@ -227,6 +227,82 @@
     .node { cursor: pointer; }
     .node-label { pointer-events: none; paint-order: stroke; }
     .link { pointer-events: none; }
+
+    /* ── AUDIENCE INSIGHTS PANEL ── */
+    #playlist-panel {
+      position: fixed; top: 58px; right: 0; bottom: 0; width: 340px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      z-index: 90; display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    #playlist-panel.open { transform: translateX(0); }
+    #pp-header {
+      display: flex; align-items: center; gap: 12px; padding: 16px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    #pp-artist-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    #pp-avatar {
+      width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+      background-size: cover; background-position: center;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: #fff;
+    }
+    #pp-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #pp-meta { font-size: 11px; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #pp-close {
+      background: none; border: none; color: var(--dim); cursor: pointer;
+      font-size: 18px; width: 28px; height: 28px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    #pp-close:hover { color: var(--text); background: var(--surface2); }
+    #pp-section-label {
+      padding: 12px 16px 6px; font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--dim); flex-shrink: 0;
+    }
+    #pp-list { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
+    #pp-list::-webkit-scrollbar { width: 4px; }
+    #pp-list::-webkit-scrollbar-track { background: transparent; }
+    #pp-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    /* stat cards */
+    .pp-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+    .pp-stat-box { background: var(--surface2); border-radius: 8px; padding: 12px 10px; }
+    .pp-stat-num { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1; }
+    .pp-stat-num span { font-size: 13px; color: var(--dim); font-weight: 400; }
+    .pp-stat-label { font-size: 10px; color: var(--dim); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pp-pop-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+    .pp-pop-fill { height: 100%; border-radius: 2px; background: var(--c1); }
+    /* origin row */
+    .pp-origin-row { display: flex; gap: 8px; margin-bottom: 4px; }
+    .pp-origin-box { flex: 1; background: var(--surface2); border-radius: 8px; padding: 10px; }
+    .pp-origin-val { font-size: 13px; font-weight: 600; color: var(--text); }
+    .pp-origin-label { font-size: 10px; color: var(--dim); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* genre tags */
+    .pp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .pp-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: var(--dim); }
+    /* research links */
+    .pp-research-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .pp-research-btn {
+      display: block; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 10px; text-decoration: none; color: var(--text);
+      font-size: 12px; font-weight: 600; transition: background 0.15s, border-color 0.15s; text-align: center;
+    }
+    .pp-research-btn:hover { background: rgba(61,142,255,0.1); border-color: var(--c1); }
+    .pp-research-sub { color: var(--dim); font-size: 10px; font-weight: 400; display: block; margin-top: 2px; }
+    .pp-loading, .pp-empty { padding: 32px 16px; text-align: center; color: var(--dim); font-size: 13px; }
+    #pp-footer { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    #pp-explore {
+      width: 100%; background: var(--c1); color: #fff; border: none;
+      border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    #pp-explore:hover { opacity: 0.88; }
+    #pp-explore:disabled { opacity: 0.35; cursor: not-allowed; }
+    .pp-no-spotify {
+      font-size: 11px; color: var(--dim); text-align: center;
+      padding: 0 0 10px; line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -327,6 +403,25 @@
   </div>
 </div>
 
+<!-- AUDIENCE INSIGHTS PANEL -->
+<div id="playlist-panel">
+  <div id="pp-header">
+    <div id="pp-artist-info">
+      <div id="pp-avatar"></div>
+      <div style="min-width:0">
+        <div id="pp-name"></div>
+        <div id="pp-meta"></div>
+      </div>
+    </div>
+    <button id="pp-close" title="Close">✕</button>
+  </div>
+  <div id="pp-section-label">Audience Insights</div>
+  <div id="pp-list"></div>
+  <div id="pp-footer">
+    <button id="pp-explore">Explore Connections →</button>
+  </div>
+</div>
+
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,14 +431,14 @@ const Config = {
   get lfmKey()       { return localStorage.getItem('lfm_key') || ''; },
   get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
-  LEVEL1_LIMIT : 22,
-  LEVEL2_LIMIT : 8,
-  MAX_NODES    : 110,
-  CONCURRENCY  : 4,
+  LEVEL1_LIMIT : 22,   // direct similar artists to fetch
+  LEVEL2_LIMIT : 8,    // similar artists per L1 artist
+  MAX_NODES    : 110,  // hard cap on total nodes
+  CONCURRENCY  : 4,    // parallel API requests
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LAST.FM
+// LAST.FM  (CORS-friendly, no OAuth needed)
 // ─────────────────────────────────────────────────────────────────────────────
 const LFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
 
@@ -380,7 +475,7 @@ async function lfmGetInfo(artist) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SPOTIFY
+// SPOTIFY  (Client-Credentials — exposes secret in browser; fine for team tools)
 // ─────────────────────────────────────────────────────────────────────────────
 const SP_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SP_BASE      = 'https://api.spotify.com/v1';
@@ -408,7 +503,199 @@ async function spGetToken() {
   }
 }
 
+let _spRateLimitedUntil = 0;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIENCE INSIGHTS  (Last.fm + Spotify + MusicBrainz)
+// ─────────────────────────────────────────────────────────────────────────────
+const _audienceCache = new Map();
+
+async function fetchAudienceInsights(artistName) {
+  if (_audienceCache.has(artistName)) return _audienceCache.get(artistName);
+
+  const [spRes, lfmRes, mbRes] = await Promise.allSettled([
+    // Spotify: popularity, followers, genres
+    (async () => {
+      if (Date.now() < _spRateLimitedUntil) return null;
+      const token = await spGetToken();
+      if (!token) return null;
+      const p = new URLSearchParams({ q: artistName, type: 'artist', limit: 1 });
+      const res = await fetch(`${SP_BASE}/search?${p}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 429) {
+        _spRateLimitedUntil = Date.now() + parseInt(res.headers.get('Retry-After') || '30', 10) * 1000;
+        return null;
+      }
+      const data = await res.json();
+      const a = data.artists?.items?.[0];
+      if (!a) return null;
+      return {
+        popularity : a.popularity,
+        followers  : a.followers?.total ?? null,
+        genres     : (a.genres || []).slice(0, 5),
+        url        : a.external_urls?.spotify,
+      };
+    })(),
+
+    // Last.fm: listeners, playcount, tags
+    (async () => {
+      if (!Config.lfmKey) return null;
+      const p = new URLSearchParams({
+        method: 'artist.getInfo', artist: artistName,
+        api_key: Config.lfmKey, format: 'json', autocorrect: 1,
+      });
+      const res  = await fetch(`${LFM_BASE}?${p}`);
+      const data = await res.json();
+      if (data.error) return null;
+      const a = data.artist;
+      return {
+        listeners : parseInt(a.stats?.listeners  || 0),
+        playcount : parseInt(a.stats?.playcount  || 0),
+        tags      : (a.tags?.tag || []).map(t => t.name).slice(0, 5),
+        url       : a.url,
+      };
+    })(),
+
+    // MusicBrainz: origin country, debut/formed year, type (no API key needed)
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artistName)}&limit=1&fmt=json`,
+          { headers: { 'User-Agent': 'ArtistConstellation/1.0' } }
+        );
+        const data = await res.json();
+        const a = data.artists?.[0];
+        if (!a || parseInt(a.score) < 70) return null;
+
+        const mbid = a.id;
+        const artistType = a.type || null;
+        let startYear = null;
+
+        if (artistType === 'Person' && mbid) {
+          // Solo artists: find actual debut release year, not birthday
+          try {
+            await new Promise(r => setTimeout(r, 650)); // respect MB 1 req/s limit
+            const rgRes = await fetch(
+              `https://musicbrainz.org/ws/2/release-group?artist=${mbid}&limit=100&fmt=json`,
+              { headers: { 'User-Agent': 'ArtistConstellation/1.0' } }
+            );
+            const rgData = await rgRes.json();
+            const years = (rgData['release-groups'] || [])
+              .map(g => g['first-release-date'])
+              .filter(d => d && d.length >= 4)
+              .map(d => parseInt(d.slice(0, 4)))
+              .filter(y => y > 1920 && y <= new Date().getFullYear())
+              .sort((a, b) => a - b);
+            startYear = years[0]?.toString() || null;
+          } catch { startYear = null; }
+        } else if (artistType && artistType !== 'Person') {
+          // Groups/bands: use formation year from life-span (this is not a birthday)
+          const begin = a['life-span']?.begin;
+          startYear = (begin && begin.length >= 4) ? begin.slice(0, 4) : null;
+        }
+
+        return {
+          country   : a.country || a.area?.name || null,
+          startYear,
+          type      : artistType,
+        };
+      } catch { return null; }
+    })(),
+  ]);
+
+  const result = {
+    spotify : spRes.status  === 'fulfilled' ? spRes.value  : null,
+    lfm     : lfmRes.status === 'fulfilled' ? lfmRes.value : null,
+    mb      : mbRes.status  === 'fulfilled' ? mbRes.value  : null,
+  };
+  _audienceCache.set(artistName, result);
+  return result;
+}
+
+function renderAudienceInsights(data, artistName) {
+  const { spotify, lfm, mb } = data;
+  const fmt = n => (n != null && n > 0) ? n.toLocaleString() : null;
+  let html = '';
+
+  // ── Platform stats grid ──────────────────────────────────────────────────
+  const statItems = [];
+  if (fmt(lfm?.listeners))  statItems.push({ num: fmt(lfm.listeners),  label: 'Last.fm Listeners' });
+  if (fmt(spotify?.followers)) statItems.push({ num: fmt(spotify.followers), label: 'Spotify Followers' });
+  if (fmt(lfm?.playcount))  statItems.push({ num: fmt(lfm.playcount),  label: 'Total Scrobbles' });
+
+  if (statItems.length || spotify?.popularity != null) {
+    html += '<div class="pp-stats-grid">';
+    statItems.forEach(s => {
+      html += `<div class="pp-stat-box"><div class="pp-stat-num">${s.num}</div><div class="pp-stat-label">${s.label}</div></div>`;
+    });
+    if (spotify?.popularity != null) {
+      html += `<div class="pp-stat-box">
+        <div class="pp-stat-num">${spotify.popularity}<span>/100</span></div>
+        <div class="pp-pop-bar"><div class="pp-pop-fill" style="width:${spotify.popularity}%"></div></div>
+        <div class="pp-stat-label">Spotify Popularity</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // ── Origin & career ──────────────────────────────────────────────────────
+  const originItems = [];
+  if (mb?.country)   originItems.push({ val: mb.country,   label: 'Origin' });
+  if (mb?.startYear) originItems.push({ val: mb.startYear, label: mb.type === 'Person' ? 'Debut' : 'Formed' });
+  if (mb?.type)      originItems.push({ val: mb.type,      label: 'Type' });
+
+  if (originItems.length) {
+    html += '<div class="pp-origin-row">';
+    originItems.forEach(o => {
+      html += `<div class="pp-origin-box"><div class="pp-origin-val">${o.val}</div><div class="pp-origin-label">${o.label}</div></div>`;
+    });
+    html += '</div>';
+  }
+
+  // ── Genre / style tags ───────────────────────────────────────────────────
+  const seen = new Set();
+  const allTags = [...(lfm?.tags || []), ...(spotify?.genres || [])]
+    .filter(t => { const k = t.toLowerCase(); return seen.has(k) ? false : seen.add(k); })
+    .slice(0, 9);
+  if (allTags.length) {
+    html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 6px">Genre &amp; Style</div>';
+    html += '<div class="pp-tags">' + allTags.map(t => `<span class="pp-tag">${t}</span>`).join('') + '</div></div>';
+  }
+
+  // ── Estimated audience age ────────────────────────────────────────────────
+  const ageValues = estimateAgeDemo(allTags);
+  if (ageValues) {
+    html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 8px">Est. Audience Age <span style="font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:0.6">&nbsp;· genre-based estimate</span></div>';
+    AGE_LABELS.forEach((label, i) => {
+      const pct = ageValues[i];
+      html += `<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:11px;color:var(--dim)">${label}</span><span style="font-size:11px;color:var(--text);font-weight:600">${pct}%</span></div><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--c2);border-radius:2px"></div></div></div>`;
+    });
+    html += '</div>';
+  }
+
+  // ── Research tools ───────────────────────────────────────────────────────
+  const q = encodeURIComponent(artistName);
+  const spLink = spotify?.url || `https://open.spotify.com/search/${q}`;
+  html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 6px">Audience Research</div>';
+  html += `<div class="pp-research-grid">
+    <a class="pp-research-btn" href="https://sparktoro.com/research/search?q=${q}" target="_blank" rel="noopener">
+      SparkToro<span class="pp-research-sub">Online habits &amp; publications</span>
+    </a>
+    <a class="pp-research-btn" href="https://trends.google.com/trends/explore?q=${q}" target="_blank" rel="noopener">
+      Google Trends<span class="pp-research-sub">Interest by region &amp; age</span>
+    </a>
+    <a class="pp-research-btn" href="${spLink}" target="_blank" rel="noopener">
+      Spotify<span class="pp-research-sub">Age, gender via for Artists</span>
+    </a>
+    <a class="pp-research-btn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">
+      YouTube<span class="pp-research-sub">Demographics in Studio</span>
+    </a>
+  </div></div>`;
+
+  return html;
+}
+
 async function spSearchArtist(name) {
+  if (Date.now() < _spRateLimitedUntil) return null;
   const token = await spGetToken();
   if (!token) return null;
   try {
@@ -416,9 +703,15 @@ async function spSearchArtist(name) {
     const res = await fetch(`${SP_BASE}/search?${p}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('Retry-After') || '30', 10);
+      _spRateLimitedUntil = Date.now() + retryAfter * 1000;
+      return null;
+    }
     const data   = await res.json();
     const artist = data.artists?.items?.[0];
     if (!artist) return null;
+    // Prefer the medium image (index 1) for better performance
     const img = artist.images?.[1]?.url || artist.images?.[0]?.url || null;
     return {
       image      : img,
@@ -427,6 +720,89 @@ async function spSearchArtist(name) {
       url        : artist.external_urls?.spotify,
     };
   } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AGE DEMOGRAPHICS  (estimated from genre/audience research)
+// Sources: Spotify demographic research, Nielsen Music, IFPI, MRC Data reports
+// ─────────────────────────────────────────────────────────────────────────────
+const GENRE_DEMO = {
+  // Buckets: [13–17, 18–24, 25–34, 35–44, 45+]
+  'pop':               [14, 29, 27, 17, 13],
+  'teen pop':          [28, 32, 22, 11,  7],
+  'dance pop':         [12, 31, 29, 17, 11],
+  'electropop':        [10, 30, 30, 18, 12],
+  'synthpop':          [ 8, 22, 28, 24, 18],
+  'hip hop':           [18, 34, 27, 13,  8],
+  'hip-hop':           [18, 34, 27, 13,  8],
+  'rap':               [19, 34, 26, 13,  8],
+  'trap':              [20, 38, 25, 11,  6],
+  'drill':             [22, 40, 24, 10,  4],
+  'grime':             [18, 36, 26, 13,  7],
+  'r&b':               [10, 25, 30, 20, 15],
+  'soul':              [ 5, 14, 25, 28, 28],
+  'neo soul':          [ 6, 18, 28, 26, 22],
+  'funk':              [ 5, 15, 25, 28, 27],
+  'disco':             [ 4, 12, 22, 28, 34],
+  'rock':              [ 7, 17, 23, 25, 28],
+  'classic rock':      [ 3, 10, 18, 27, 42],
+  'indie rock':        [ 8, 24, 30, 22, 16],
+  'alternative rock':  [10, 25, 28, 22, 15],
+  'alternative':       [10, 25, 28, 22, 15],
+  'indie':             [ 9, 26, 30, 22, 13],
+  'punk':              [12, 28, 28, 20, 12],
+  'post-punk':         [ 7, 20, 28, 25, 20],
+  'emo':               [16, 32, 28, 16,  8],
+  'grunge':            [ 8, 18, 26, 28, 20],
+  'new wave':          [ 5, 14, 22, 28, 31],
+  'metal':             [10, 25, 28, 22, 15],
+  'heavy metal':       [ 8, 20, 27, 25, 20],
+  'hardcore':          [12, 30, 28, 18, 12],
+  'electronic':        [10, 30, 30, 18, 12],
+  'edm':               [14, 35, 28, 14,  9],
+  'house':             [ 8, 28, 32, 20, 12],
+  'techno':            [ 6, 24, 32, 22, 16],
+  'drum and bass':     [10, 28, 31, 20, 11],
+  'ambient':           [ 5, 18, 30, 27, 20],
+  'country':           [ 8, 18, 25, 26, 23],
+  'folk':              [ 5, 15, 25, 27, 28],
+  'singer-songwriter': [ 6, 18, 27, 26, 23],
+  'jazz':              [ 3,  9, 19, 27, 42],
+  'blues':             [ 3,  9, 18, 27, 43],
+  'classical':         [ 3,  8, 16, 26, 47],
+  'gospel':            [ 6, 14, 22, 27, 31],
+  'christian':         [ 8, 18, 24, 25, 25],
+  'worship':           [ 8, 20, 26, 24, 22],
+  'latin':             [12, 26, 29, 20, 13],
+  'reggaeton':         [14, 30, 28, 17, 11],
+  'reggae':            [ 7, 20, 28, 25, 20],
+  'afrobeats':         [12, 30, 30, 18, 10],
+  'k-pop':             [22, 38, 25, 10,  5],
+  'j-pop':             [18, 35, 27, 13,  7],
+};
+
+const AGE_LABELS = ['13–17', '18–24', '25–34', '35–44', '45+'];
+
+function estimateAgeDemo(genres) {
+  const buckets = [0, 0, 0, 0, 0];
+  let matched = 0;
+  for (const genre of genres) {
+    const g = genre.toLowerCase().trim();
+    let weights = GENRE_DEMO[g];
+    if (!weights) {
+      for (const [key, val] of Object.entries(GENRE_DEMO)) {
+        if (g.includes(key) || key.includes(g)) { weights = val; break; }
+      }
+    }
+    if (weights) { weights.forEach((v, i) => { buckets[i] += v; }); matched++; }
+  }
+  if (!matched) return null;
+  const avg = buckets.map(b => Math.round(b / matched));
+  const total = avg.reduce((s, v) => s + v, 0);
+  const norm = avg.map(v => Math.round(v * 100 / total));
+  const drift = 100 - norm.reduce((s, v) => s + v, 0);
+  norm[norm.indexOf(Math.max(...norm))] += drift;
+  return norm;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -448,9 +824,9 @@ async function mapConcurrent(items, concurrency, fn) {
 // ─────────────────────────────────────────────────────────────────────────────
 // GRAPH STATE
 // ─────────────────────────────────────────────────────────────────────────────
-let nodesMap = new Map();
-let linksSet = new Set();
-let rawLinks = [];
+let nodesMap  = new Map();  // id → node object (preserved across re-renders)
+let linksSet  = new Set();  // "src|tgt" dedup strings
+let rawLinks  = [];         // { s, t, strength }  (our canonical source)
 
 function nid(name) { return name.toLowerCase().trim(); }
 
@@ -500,6 +876,7 @@ function initD3() {
   svg = d3.select('#graph').attr('width', W).attr('height', H);
   defs = svg.append('defs');
 
+  // Glow filter
   const glow = defs.append('filter').attr('id', 'glow')
     .attr('x', '-60%').attr('y', '-60%').attr('width', '220%').attr('height', '220%');
   glow.append('feGaussianBlur').attr('in', 'SourceGraphic').attr('stdDeviation', 6).attr('result', 'b');
@@ -507,8 +884,10 @@ function initD3() {
   m.append('feMergeNode').attr('in', 'b');
   m.append('feMergeNode').attr('in', 'SourceGraphic');
 
+  // Zoom / pan
   const zoom = d3.zoom().scaleExtent([0.05, 6]).on('zoom', e => {
     zoomGroup.attr('transform', e.transform);
+    // Show L2 labels when zoomed in
     const k = e.transform.k;
     nodeGroup && nodeGroup.selectAll('text.node-label')
       .filter(d => d.level === 2)
@@ -521,7 +900,7 @@ function initD3() {
   nodeGroup  = zoomGroup.append('g').attr('class', 'nodes');
 
   simulation = d3.forceSimulation()
-    .force('link', d3.forceLink().id(d => d.id)
+    .force('link',    d3.forceLink().id(d => d.id)
       .distance(d => {
         const sl = d.source.level ?? 0, tl = d.target.level ?? 0;
         if (sl === 0 || tl === 0) return 130;
@@ -545,8 +924,10 @@ function initD3() {
 
 function updateGraph() {
   const nodes = [...nodesMap.values()];
+  // Fresh link objects each call so D3 can mutate source/target freely
   const links = rawLinks.map(l => ({ source: l.s, target: l.t, strength: l.strength }));
 
+  // ── Links ──
   linkGroup.selectAll('line.link')
     .data(links, l => {
       const s = typeof l.source === 'object' ? l.source.id : l.source;
@@ -561,6 +942,7 @@ function updateGraph() {
       exit   => exit.remove()
     );
 
+  // ── Nodes ──
   const nodeSel = nodeGroup.selectAll('g.node').data(nodes, d => d.id);
 
   const enter = nodeSel.enter().append('g').attr('class', 'node')
@@ -574,12 +956,14 @@ function updateGraph() {
       .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
     );
 
+  // Glow halo (level 0 only)
   enter.filter(d => d.level === 0).append('circle').attr('class', 'halo')
     .attr('r', d => nodeRadius(d) + 14)
     .attr('fill', d => nodeColor(d))
     .attr('opacity', 0.10)
     .attr('filter', 'url(#glow)');
 
+  // Main circle
   enter.append('circle').attr('class', 'node-circle')
     .attr('r',            d => nodeRadius(d))
     .attr('fill',         d => nodeColor(d))
@@ -587,6 +971,7 @@ function updateGraph() {
     .attr('stroke-width', d => d.level === 0 ? 3 : 1.5)
     .attr('stroke-opacity', 0.85);
 
+  // Label
   enter.append('text').attr('class', 'node-label')
     .attr('text-anchor', 'middle')
     .attr('dy',          d => nodeRadius(d) + 14)
@@ -597,11 +982,13 @@ function updateGraph() {
     .attr('opacity', d => d.level === 2 ? 0 : 1)
     .text(d => d.name);
 
+  // Update image fill for existing + new nodes
   nodeSel.merge(enter).select('.node-circle')
     .attr('fill', d => d.image ? `url(#pat-${d.id.replace(/\W/g,'_')})` : nodeColor(d));
 
   nodeSel.exit().remove();
 
+  // Feed simulation
   simulation.nodes(nodes);
   simulation.force('link').links(links);
   simulation.alpha(Math.max(simulation.alpha(), 0.35)).restart();
@@ -618,12 +1005,15 @@ function applyImage(node) {
     .attr('patternContentUnits', 'objectBoundingBox')
     .attr('width', 1).attr('height', 1);
 
+  // Colored fallback rect
   pat.append('rect').attr('width', 1).attr('height', 1).attr('fill', nodeColor(node));
+
   pat.append('image')
     .attr('href', node.image)
     .attr('x', 0).attr('y', 0).attr('width', 1).attr('height', 1)
     .attr('preserveAspectRatio', 'xMidYMid slice');
 
+  // Update the circle on the existing DOM node
   nodeGroup.selectAll('g.node').filter(d => d.id === node.id)
     .select('.node-circle').attr('fill', `url(#${patId})`);
 }
@@ -637,20 +1027,96 @@ function tick() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AUDIENCE INSIGHTS PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+let _ppNode = null;
+
+async function openPlaylistPanel(node) {
+  _ppNode = node;
+
+  document.getElementById('pp-name').textContent = node.name;
+  document.getElementById('pp-meta').textContent = node.genres?.length ? node.genres.join(' · ') : '';
+
+  const avatar = document.getElementById('pp-avatar');
+  if (node.image) {
+    avatar.style.backgroundImage = `url(${node.image})`;
+    avatar.style.backgroundColor = 'transparent';
+    avatar.textContent = '';
+  } else {
+    avatar.style.backgroundImage = '';
+    avatar.style.backgroundColor = nodeColor(node);
+    avatar.textContent = node.name[0].toUpperCase();
+  }
+
+  const exploreBtn = document.getElementById('pp-explore');
+  if (node.level > 0) {
+    exploreBtn.textContent = `Explore "${node.name}" \u2192`;
+    exploreBtn.disabled = false;
+  } else {
+    exploreBtn.textContent = 'Currently mapped';
+    exploreBtn.disabled = true;
+  }
+
+  document.getElementById('pp-section-label').textContent = 'Audience Insights';
+  document.getElementById('playlist-panel').classList.add('open');
+
+  const listEl = document.getElementById('pp-list');
+  listEl.innerHTML = '<div class="pp-loading">Loading insights\u2026</div>';
+
+  // Fetch artist image + genres on-demand if not already loaded
+  if (!node.image && !node._spFetched) {
+    node._spFetched = true;
+    spSearchArtist(node.name).then(info => {
+      if (!info) return;
+      node.image  = info.image;
+      node.genres = info.genres;
+      node.url    = node.url || info.url;
+      if (info.image) {
+        applyImage(node);
+        if (_ppNode === node) {
+          const av = document.getElementById('pp-avatar');
+          av.style.backgroundImage = `url(${info.image})`;
+          av.style.backgroundColor = 'transparent';
+          av.textContent = '';
+        }
+      }
+      if (info.genres?.length && _ppNode === node) {
+        document.getElementById('pp-meta').textContent = info.genres.join(' · ');
+      }
+    });
+  }
+
+  const insights = await fetchAudienceInsights(node.name);
+  if (_ppNode !== node) return; // panel switched while loading
+
+  const hasData = insights.spotify || insights.lfm || insights.mb;
+  if (!hasData) {
+    listEl.innerHTML = '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
+    return;
+  }
+  listEl.innerHTML = renderAudienceInsights(insights, node.name);
+}
+
+function closePlaylistPanel() {
+  document.getElementById('playlist-panel').classList.remove('open');
+  _ppNode = null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HOVER / CLICK
 // ─────────────────────────────────────────────────────────────────────────────
-const tooltip     = document.getElementById('tooltip');
-const ttName      = document.getElementById('tt-name');
-const ttBadge     = document.getElementById('tt-badge');
-const ttMatch     = document.getElementById('tt-match');
-const ttListeners = document.getElementById('tt-listeners');
-const ttGenres    = document.getElementById('tt-genres');
-const ttHint      = document.getElementById('tt-hint');
+const tooltip    = document.getElementById('tooltip');
+const ttName     = document.getElementById('tt-name');
+const ttBadge    = document.getElementById('tt-badge');
+const ttMatch    = document.getElementById('tt-match');
+const ttListeners= document.getElementById('tt-listeners');
+const ttGenres   = document.getElementById('tt-genres');
+const ttHint     = document.getElementById('tt-hint');
 
 const BADGE_STYLES = [
-  { text: 'Input Artist',   bg: 'rgba(255,179,0,0.18)',  color: '#FFB300' },
-  { text: 'Direct Similar', bg: 'rgba(61,142,255,0.18)', color: '#3D8EFF' },
-  { text: '2nd Degree',     bg: 'rgba(155,107,255,0.18)',color: '#9B6BFF' },
+  { text: 'Input Artist',  bg: 'rgba(255,179,0,0.18)',  color: '#FFB300' },
+  { text: 'Direct Similar',bg: 'rgba(61,142,255,0.18)', color: '#3D8EFF' },
+  { text: '2nd Degree',    bg: 'rgba(155,107,255,0.18)',color: '#9B6BFF' },
 ];
 
 function positionTooltip(event) {
@@ -661,17 +1127,19 @@ function positionTooltip(event) {
 
 function onHover(event, d) {
   const bs = BADGE_STYLES[d.level] || BADGE_STYLES[2];
-  ttName.textContent       = d.name;
-  ttBadge.textContent      = bs.text;
+  ttName.textContent  = d.name;
+  ttBadge.textContent = bs.text;
   ttBadge.style.background = bs.bg;
   ttBadge.style.color      = bs.color;
-  ttMatch.textContent      = d.level > 0 ? `Similarity: ${(d.match * 100).toFixed(0)}%` : '';
-  ttListeners.textContent  = d.listeners ? `${d.listeners.toLocaleString()} listeners` : '';
-  ttGenres.textContent     = d.genres?.length ? d.genres.join(' · ') : '';
-  ttHint.style.display     = d.level > 0 ? 'block' : 'none';
-  tooltip.style.display    = 'block';
+  ttMatch.textContent    = d.level > 0 ? `Similarity: ${(d.match * 100).toFixed(0)}%` : '';
+  ttListeners.textContent = d.listeners ? `${d.listeners.toLocaleString()} listeners` : '';
+  ttGenres.textContent   = d.genres?.length ? d.genres.join(' · ') : '';
+  ttHint.textContent     = d.level > 0 ? 'Click to view audience insights \u00b7 Explore from panel' : 'Click to view audience insights';
+  ttHint.style.display   = 'block';
+  tooltip.style.display  = 'block';
   positionTooltip(event);
 
+  // Highlight connected nodes
   const linked = new Set([d.id]);
   rawLinks.forEach(l => {
     if (l.s === d.id) linked.add(l.t);
@@ -683,6 +1151,7 @@ function onHover(event, d) {
     const t = typeof l.target === 'object' ? l.target.id : l.target;
     return (s === d.id || t === d.id) ? 0.85 : 0.04;
   });
+  // Show L2 label on hover
   if (d.level === 2) {
     nodeGroup.selectAll('g.node').filter(n => n.id === d.id)
       .select('text.node-label').attr('opacity', 1);
@@ -703,31 +1172,28 @@ function onLeave(event, d) {
 
 function onClick(event, d) {
   event.stopPropagation();
-  if (d.level > 0 && !isSearching) {
-    document.getElementById('artist-input').value = d.name;
-    runSearch(d.name);
-  }
+  openPlaylistPanel(d);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUS / PROGRESS
 // ─────────────────────────────────────────────────────────────────────────────
-const statusBar    = document.getElementById('status-bar');
-const statusTxt    = document.getElementById('status-text');
-const progressWrap = document.getElementById('progress-wrap');
-const progressFill = document.getElementById('progress-fill');
+const statusBar   = document.getElementById('status-bar');
+const statusTxt   = document.getElementById('status-text');
+const progressWrap= document.getElementById('progress-wrap');
+const progressFill= document.getElementById('progress-fill');
 
 let _progressTotal = 0, _progressDone = 0;
 
 function setStatus(msg, withBar = false) {
-  statusBar.style.display    = 'block';
-  statusTxt.textContent      = msg;
+  statusBar.style.display = 'block';
+  statusTxt.textContent   = msg;
   progressWrap.style.display = withBar ? 'block' : 'none';
 }
 
 function initProgress(total) {
   _progressTotal = total; _progressDone = 0;
-  progressFill.style.width   = '0%';
+  progressFill.style.width = '0%';
   progressWrap.style.display = 'block';
 }
 
@@ -747,7 +1213,7 @@ function clearStatus() {
 // ─────────────────────────────────────────────────────────────────────────────
 function showError(msg) {
   const el = document.getElementById('error-toast');
-  el.textContent   = msg;
+  el.textContent = msg;
   el.style.display = 'block';
   setTimeout(() => { el.style.display = 'none'; }, 6000);
 }
@@ -771,12 +1237,14 @@ async function runSearch(artistName) {
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('legend').style.display = 'block';
 
+  closePlaylistPanel();
   resetGraph();
   linkGroup.selectAll('*').remove();
   nodeGroup.selectAll('*').remove();
   defs.selectAll('pattern').remove();
 
   try {
+    // ── Level 1 ────────────────────────────────────────────────
     setStatus(`Searching for "${artistName}"…`);
     addNode(artistName, 0, 1);
 
@@ -796,6 +1264,7 @@ async function runSearch(artistName) {
     }
     updateGraph();
 
+    // ── Level 2 (concurrent) ───────────────────────────────────
     const l1Names = level1.map(a => a.name);
     initProgress(l1Names.length);
 
@@ -805,42 +1274,24 @@ async function runSearch(artistName) {
         const similar = await lfmGetSimilar(name, Config.LEVEL2_LIMIT);
         for (const a of similar) {
           if (nodesMap.has(nid(a.name))) {
-            addLink(name, a.name, a.match);
+            addLink(name, a.name, a.match);           // cross-edge only
           } else if (nodesMap.size < Config.MAX_NODES) {
             addNode(a.name, 2, a.match);
             addLink(name, a.name, a.match);
           }
         }
         updateGraph();
-      } catch { }
+      } catch { /* skip failed individual calls */ }
     });
 
     setStatus(`${nodesMap.size} artists · ${rawLinks.length} connections`);
 
+    // Background: Last.FM info for center node
     lfmGetInfo(artistName).then(info => {
       if (!info) return;
       const node = nodesMap.get(nid(artistName));
       if (node) { node.listeners = info.listeners; node.url = info.url; }
     });
-
-    const allNodes  = [...nodesMap.values()];
-    const hasSpotify = !!(Config.spClientId && Config.spClientSecret);
-
-    if (hasSpotify) {
-      initProgress(allNodes.length);
-      setStatus('Loading artist images…', true);
-
-      await mapConcurrent(allNodes, Config.CONCURRENCY, async node => {
-        tickProgress(`Images… ${_progressDone} / ${allNodes.length}`);
-        const info = await spSearchArtist(node.name);
-        if (info) {
-          node.image  = info.image;
-          node.genres = info.genres;
-          node.url    = node.url || info.url;
-          if (info.image) applyImage(node);
-        }
-      });
-    }
 
     setStatus(`✓  ${nodesMap.size} artists · ${rawLinks.length} connections`);
     clearStatus();
@@ -870,7 +1321,7 @@ function saveToRecent(name) {
 }
 
 function renderRecent() {
-  const list   = document.getElementById('recent-list');
+  const list = document.getElementById('recent-list');
   const recent = loadRecent();
   if (!recent.length) {
     list.innerHTML = '<div class="recent-empty">No recent searches yet</div>';
@@ -938,11 +1389,21 @@ document.getElementById('settings-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('settings-overlay')) closeSettings();
 });
 document.getElementById('modal-save').addEventListener('click', () => {
-  localStorage.setItem('lfm_key',   document.getElementById('cfg-lfm-key').value.trim());
-  localStorage.setItem('sp_id',     document.getElementById('cfg-sp-id').value.trim());
-  localStorage.setItem('sp_secret', document.getElementById('cfg-sp-secret').value.trim());
-  _spToken = null; _spExpiry = 0;
+  localStorage.setItem('lfm_key',    document.getElementById('cfg-lfm-key').value.trim());
+  localStorage.setItem('sp_id',      document.getElementById('cfg-sp-id').value.trim());
+  localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
+  _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
+});
+
+document.getElementById('pp-close').addEventListener('click', closePlaylistPanel);
+document.getElementById('pp-explore').addEventListener('click', () => {
+  if (_ppNode && _ppNode.level > 0 && !isSearching) {
+    const name = _ppNode.name;
+    closePlaylistPanel();
+    document.getElementById('artist-input').value = name;
+    runSearch(name);
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -968,8 +1429,9 @@ function initStars() {
 
     const count = Math.floor((canvas.width * canvas.height) / 2800);
     for (let i = 0; i < count; i++) {
-      const x   = Math.random() * canvas.width;
-      const y   = Math.random() * canvas.height;
+      const x  = Math.random() * canvas.width;
+      const y  = Math.random() * canvas.height;
+      // ~10% of stars are slightly brighter/larger
       const big = Math.random() < 0.1;
       const r   = big ? Math.random() * 1.2 + 0.8 : Math.random() * 0.7 + 0.2;
       const a   = big ? Math.random() * 0.45 + 0.35 : Math.random() * 0.35 + 0.08;
@@ -984,12 +1446,10 @@ function initStars() {
   window.addEventListener('resize', draw);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────────────────────────────────────
 initD3();
 initStars();
 if (!Config.lfmKey) setTimeout(openSettings, 350);
 </script>
 </body>
 </html>
+
