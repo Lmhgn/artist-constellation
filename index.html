@@ -14,9 +14,9 @@
       --border:   rgba(255,255,255,0.07);
       --text:     #d0d8f0;
       --dim:      #6a7a9a;
-      --c0:       #FFB300;
-      --c1:       #3D8EFF;
-      --c2:       #9B6BFF;
+      --c0:       #FFB300;   /* center  — amber  */
+      --c1:       #3D8EFF;   /* level 1 — blue   */
+      --c2:       #9B6BFF;   /* level 2 — purple */
       --danger:   #FF5252;
     }
 
@@ -170,7 +170,16 @@
       border-radius: 14px; padding: 26px; width: 440px; max-width: 92vw;
     }
     #settings-modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-    .modal-desc { font-size: 13px; color: var(--dim); margin-bottom: 22px; line-height: 1.5; }
+    .modal-desc { font-size: 13px; color: var(--dim); margin-bottom: 14px; line-height: 1.5; }
+    .api-notice {
+      background: rgba(61,142,255,0.1);
+      border: 1px solid rgba(61,142,255,0.25);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--c1);
+      margin-bottom: 8px;
+    }
     .section-title {
       font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
       color: var(--dim); margin: 20px 0 10px; padding-bottom: 7px;
@@ -288,6 +297,10 @@
     <h2>API Configuration</h2>
     <p class="modal-desc">Keys are stored only in your browser's localStorage — never sent anywhere except the official APIs.</p>
 
+    <div class="api-notice">
+      🔑 Don't have the API codes yet? Ask Liam.
+    </div>
+
     <div class="section-title">Last.FM — Required (similarity data)</div>
     <div class="field">
       <label>API Key</label>
@@ -320,8 +333,8 @@
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 const Config = {
-  get lfmKey()        { return localStorage.getItem('lfm_key') || ''; },
-  get spClientId()    { return localStorage.getItem('sp_id') || ''; },
+  get lfmKey()       { return localStorage.getItem('lfm_key') || ''; },
+  get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
   LEVEL1_LIMIT : 22,
   LEVEL2_LIMIT : 8,
@@ -477,7 +490,7 @@ function nodeRadius(d) {
 }
 
 function nodeColor(d) {
-  return [,'#FFB300','#3D8EFF','#9B6BFF'][d.level] ?? '#9B6BFF';
+  return ['#FFB300','#3D8EFF','#9B6BFF'][d.level] ?? '#9B6BFF';
 }
 
 function initD3() {
