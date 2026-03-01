@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artist Constellation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080b12;
+      --surface:  #0f1420;
+      --surface2: #161d2e;
+      --border:   rgba(255,255,255,0.07);
+      --text:     #d0d8f0;
+      --dim:      #6a7a9a;
+      --c0:       #FFB300;
+      --c1:       #3D8EFF;
+      --c2:       #9B6BFF;
+      --danger:   #FF5252;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── TOP BAR ── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 58px;
+      background: rgba(8,11,18,0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 16px; gap: 12px;
+      z-index: 100;
+    }
+    #app-title {
+      font-size: 17px; font-weight: 700; color: var(--c0);
+      letter-spacing: -0.3px; white-space: nowrap;
+    }
+    #app-title span { color: var(--dim); font-weight: 400; font-size: 13px; margin-left: 4px; }
+    #search-form { display: flex; gap: 8px; flex: 1; max-width: 480px; }
+    #artist-input {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px; color: var(--text); font-size: 14px;
+      outline: none; transition: border-color 0.2s;
+    }
+    #artist-input:focus { border-color: var(--c1); }
+    #artist-input::placeholder { color: var(--dim); }
+    #search-btn {
+      background: var(--c1); color: #fff; border: none; border-radius: 8px;
+      padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    #search-btn:hover { opacity: 0.88; }
+    #search-btn:active { transform: scale(0.96); }
+    #search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #settings-btn {
+      margin-left: auto; background: var(--surface2); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px; padding: 0 14px; height: 38px; display: flex; align-items: center;
+      gap: 6px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 500;
+      transition: border-color 0.2s, background 0.2s; flex-shrink: 0; white-space: nowrap;
+    }
+    #settings-btn:hover { border-color: var(--c1); background: var(--surface); }
+
+    /* ── RECENT DROPDOWN ── */
+    #recent-wrapper { position: relative; flex-shrink: 0; }
+    #recent-btn {
+      background: var(--surface2); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px; padding: 0 14px; height: 38px; display: flex; align-items: center;
+      gap: 6px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 500;
+      transition: border-color 0.2s, background 0.2s; white-space: nowrap;
+    }
+    #recent-btn:hover { border-color: var(--c1); background: var(--surface); }
+    #recent-btn.active { border-color: var(--c1); }
+    #recent-dropdown {
+      display: none; position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; min-width: 220px; max-width: 300px;
+      z-index: 200; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #recent-dropdown.open { display: block; }
+    .recent-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 14px 8px; border-bottom: 1px solid var(--border);
+    }
+    .recent-header span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+    #recent-clear {
+      font-size: 11px; color: var(--dim); cursor: pointer; background: none; border: none;
+      padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
+    }
+    #recent-clear:hover { color: var(--danger); }
+    #recent-list { padding: 6px; }
+    .recent-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text);
+      transition: background 0.15s; overflow: hidden;
+    }
+    .recent-item:hover { background: var(--surface2); }
+    .recent-item-icon { font-size: 11px; color: var(--dim); flex-shrink: 0; }
+    .recent-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-empty { padding: 18px 14px; text-align: center; font-size: 13px; color: var(--dim); }
+
+    /* ── GRAPH ── */
+    #graph { position: fixed; top: 58px; left: 0; right: 0; bottom: 0; }
+
+    /* ── EMPTY STATE ── */
+    #empty-state {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      text-align: center; color: var(--dim); pointer-events: none;
+    }
+    #empty-state .icon { font-size: 56px; opacity: 0.2; margin-bottom: 16px; }
+    #empty-state h2 { font-size: 22px; font-weight: 500; color: var(--text); margin-bottom: 8px; }
+    #empty-state p  { font-size: 14px; max-width: 340px; line-height: 1.6; }
+
+    /* ── STATUS BAR ── */
+    #status-bar {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+      background: rgba(15,20,32,0.92); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 20px;
+      padding: 8px 18px; font-size: 12px; color: var(--dim);
+      z-index: 50; display: none; min-width: 220px; text-align: center;
+    }
+    #progress-wrap {
+      width: 100%; height: 2px; background: rgba(255,255,255,0.08);
+      border-radius: 2px; margin-top: 7px; overflow: hidden; display: none;
+    }
+    #progress-fill {
+      height: 100%; background: var(--c1); border-radius: 2px;
+      transition: width 0.25s ease;
+    }
+
+    /* ── LEGEND ── */
+    #legend {
+      position: fixed; bottom: 22px; left: 20px; display: none;
+      background: rgba(15,20,32,0.85); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 14px; font-size: 12px; color: var(--dim); z-index: 50;
+    }
+    #legend h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .leg { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .leg:last-child { margin-bottom: 0; }
+    .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── TOOLTIP ── */
+    #tooltip {
+      position: fixed; background: rgba(12,17,28,0.97);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; pointer-events: none; z-index: 200;
+      font-size: 13px; max-width: 230px; display: none;
+    }
+    .tt-name  { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+    .tt-badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+    .tt-row   { color: var(--dim); font-size: 12px; margin-bottom: 3px; line-height: 1.4; }
+    .tt-hint  { margin-top: 8px; color: var(--c1); font-size: 11px; }
+
+    /* ── SETTINGS MODAL ── */
+    #settings-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(6px); z-index: 300; display: none;
+      align-items: center; justify-content: center;
+    }
+    #settings-overlay.open { display: flex; }
+    #settings-modal {
+      background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 26px; width: 440px; max-width: 92vw;
+    }
+    #settings-modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .modal-desc { font-size: 13px; color: var(--dim); margin-bottom: 22px; line-height: 1.5; }
+    .section-title {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--dim); margin: 20px 0 10px; padding-bottom: 7px;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; font-weight: 500; color: var(--dim); margin-bottom: 6px; }
+    .field input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 12px; color: var(--text);
+      font-size: 13px; font-family: 'SF Mono','Fira Code',monospace; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--c1); }
+    .help-link { font-size: 11px; color: var(--c1); margin-top: 16px; display: block; text-decoration: none; }
+    .help-link:hover { text-decoration: underline; }
+    .modal-footer { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-primary {
+      flex: 1; background: var(--c1); color: #fff; border: none;
+      border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary {
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 14px; cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--c1); }
+
+    /* ── ERROR TOAST ── */
+    #error-toast {
+      position: fixed; top: 68px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,82,82,0.12); border: 1px solid rgba(255,82,82,0.35);
+      border-radius: 8px; padding: 10px 18px; color: #ff7070; font-size: 13px;
+      z-index: 150; display: none; max-width: 500px; text-align: center;
+    }
+
+    /* ── STARFIELD ── */
+    #starfield {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    }
+
+    /* ── D3 ELEMENTS ── */
+    #graph { z-index: 1; }
+    .node { cursor: pointer; }
+    .node-label { pointer-events: none; paint-order: stroke; }
+    .link { pointer-events: none; }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="app-title">Artist Constellation <span>by Liam H (data from Spotify and Last FM)</span></div>
+  <form id="search-form">
+    <input type="text" id="artist-input" placeholder="Enter an artist to explore…" autocomplete="off" spellcheck="false">
+    <button type="submit" id="search-btn">Map</button>
+  </form>
+  <div id="recent-wrapper">
+    <div id="recent-btn" title="Recent searches">⏱ Recent</div>
+    <div id="recent-dropdown">
+      <div class="recent-header">
+        <span>Recent Searches</span>
+        <button id="recent-clear">Clear all</button>
+      </div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+  <div id="settings-btn" title="API Keys &amp; Settings">⚙ Settings</div>
+</div>
+
+<!-- STARFIELD -->
+<canvas id="starfield"></canvas>
+
+<!-- ERROR TOAST -->
+<div id="error-toast"></div>
+
+<!-- GRAPH -->
+<svg id="graph"></svg>
+
+<!-- EMPTY STATE -->
+<div id="empty-state">
+  <div class="icon">♫</div>
+  <h2>Map an Artist's Universe</h2>
+  <p>Enter any artist above to visualise their musical connections across two degrees of similarity.</p>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div id="status-text"></div>
+  <div id="progress-wrap"><div id="progress-fill"></div></div>
+</div>
+
+<!-- LEGEND -->
+<div id="legend">
+  <h4>Connection Depth</h4>
+  <div class="leg"><div class="leg-dot" style="background:var(--c0)"></div> Input Artist</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--c1)"></div> Direct Similar</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--c2)"></div> 2nd Degree</div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div id="tt-badge" class="tt-badge"></div>
+  <div class="tt-row" id="tt-match"></div>
+  <div class="tt-row" id="tt-listeners"></div>
+  <div class="tt-row" id="tt-genres"></div>
+  <div class="tt-hint" id="tt-hint">Click to explore from this artist</div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay">
+  <div id="settings-modal">
+    <h2>API Configuration</h2>
+    <p class="modal-desc">Keys are stored only in your browser's localStorage — never sent anywhere except the official APIs.</p>
+
+    <div class="section-title">Last.FM — Required (similarity data)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-lfm-key" placeholder="Paste your Last.FM API key…">
+    </div>
+
+    <div class="section-title">Spotify — Optional (artist images)</div>
+    <div class="field">
+      <label>Client ID</label>
+      <input type="text" id="cfg-sp-id" placeholder="Spotify app Client ID…">
+    </div>
+    <div class="field">
+      <label>Client Secret</label>
+      <input type="password" id="cfg-sp-secret" placeholder="Spotify app Client Secret…">
+    </div>
+    <a class="help-link" href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">
+      → Get Spotify credentials at developer.spotify.com/dashboard
+    </a>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn-primary" id="modal-save">Save &amp; Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+const Config = {
+  get lfmKey()        { return localStorage.getItem('lfm_key') || ''; },
+  get spClientId()    { return localStorage.getItem('sp_id') || ''; },
+  get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
+  LEVEL1_LIMIT : 22,
+  LEVEL2_LIMIT : 8,
+  MAX_NODES    : 110,
+  CONCURRENCY  : 4,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LAST.FM
+// ─────────────────────────────────────────────────────────────────────────────
+const LFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
+
+async function lfmGetSimilar(artist, limit) {
+  const p = new URLSearchParams({
+    method: 'artist.getSimilar', artist, limit: limit || 30,
+    api_key: Config.lfmKey, format: 'json', autocorrect: 1,
+  });
+  const res  = await fetch(`${LFM_BASE}?${p}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`Last.FM: ${data.message}`);
+  return (data.similarartists?.artist || []).map(a => ({
+    name  : a.name,
+    match : parseFloat(a.match),
+  }));
+}
+
+async function lfmGetInfo(artist) {
+  try {
+    const p = new URLSearchParams({
+      method: 'artist.getInfo', artist,
+      api_key: Config.lfmKey, format: 'json', autocorrect: 1,
+    });
+    const res  = await fetch(`${LFM_BASE}?${p}`);
+    const data = await res.json();
+    if (data.error) return null;
+    const a = data.artist;
+    return {
+      listeners : parseInt(a.stats?.listeners || 0),
+      tags      : (a.tags?.tag || []).map(t => t.name).slice(0, 4),
+      url       : a.url,
+    };
+  } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPOTIFY
+// ─────────────────────────────────────────────────────────────────────────────
+const SP_TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const SP_BASE      = 'https://api.spotify.com/v1';
+
+let _spToken = null, _spExpiry = 0;
+
+async function spGetToken() {
+  if (_spToken && Date.now() < _spExpiry) return _spToken;
+  if (!Config.spClientId || !Config.spClientSecret) return null;
+  try {
+    const creds = btoa(`${Config.spClientId}:${Config.spClientSecret}`);
+    const res   = await fetch(SP_TOKEN_URL, {
+      method  : 'POST',
+      headers : { Authorization: `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body    : 'grant_type=client_credentials',
+    });
+    const data = await res.json();
+    if (!data.access_token) throw new Error(data.error || 'No token returned');
+    _spToken  = data.access_token;
+    _spExpiry = Date.now() + (data.expires_in - 60) * 1000;
+    return _spToken;
+  } catch (e) {
+    console.warn('Spotify auth failed:', e.message);
+    return null;
+  }
+}
+
+async function spSearchArtist(name) {
+  const token = await spGetToken();
+  if (!token) return null;
+  try {
+    const p   = new URLSearchParams({ q: name, type: 'artist', limit: 1 });
+    const res = await fetch(`${SP_BASE}/search?${p}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data   = await res.json();
+    const artist = data.artists?.items?.[0];
+    if (!artist) return null;
+    const img = artist.images?.[1]?.url || artist.images?.[0]?.url || null;
+    return {
+      image      : img,
+      genres     : (artist.genres || []).slice(0, 3),
+      popularity : artist.popularity,
+      url        : artist.external_urls?.spotify,
+    };
+  } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONCURRENCY HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+async function mapConcurrent(items, concurrency, fn) {
+  const results = new Array(items.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GRAPH STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let nodesMap = new Map();
+let linksSet = new Set();
+let rawLinks = [];
+
+function nid(name) { return name.toLowerCase().trim(); }
+
+function addNode(name, level, match) {
+  const id = nid(name);
+  if (!nodesMap.has(id)) {
+    nodesMap.set(id, { id, name, level, match: match ?? 1,
+      image: null, listeners: null, genres: [], url: null });
+  }
+  return nodesMap.get(id);
+}
+
+function addLink(src, tgt, strength) {
+  const s = nid(src), t = nid(tgt);
+  if (s === t) return;
+  const key = s < t ? `${s}|${t}` : `${t}|${s}`;
+  if (!linksSet.has(key)) {
+    linksSet.add(key);
+    rawLinks.push({ s, t, strength: strength ?? 0.5 });
+  }
+}
+
+function resetGraph() {
+  nodesMap.clear(); linksSet.clear(); rawLinks = [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D3 VISUALIZATION
+// ─────────────────────────────────────────────────────────────────────────────
+let svg, defs, zoomGroup, linkGroup, nodeGroup, simulation;
+let W, H;
+
+function nodeRadius(d) {
+  if (d.level === 0) return 40;
+  if (d.level === 1) return 16 + d.match * 11;
+  return 8 + d.match * 7;
+}
+
+function nodeColor(d) {
+  return [,'#FFB300','#3D8EFF','#9B6BFF'][d.level] ?? '#9B6BFF';
+}
+
+function initD3() {
+  W = window.innerWidth;
+  H = window.innerHeight - 58;
+
+  svg = d3.select('#graph').attr('width', W).attr('height', H);
+  defs = svg.append('defs');
+
+  const glow = defs.append('filter').attr('id', 'glow')
+    .attr('x', '-60%').attr('y', '-60%').attr('width', '220%').attr('height', '220%');
+  glow.append('feGaussianBlur').attr('in', 'SourceGraphic').attr('stdDeviation', 6).attr('result', 'b');
+  const m = glow.append('feMerge');
+  m.append('feMergeNode').attr('in', 'b');
+  m.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  const zoom = d3.zoom().scaleExtent([0.05, 6]).on('zoom', e => {
+    zoomGroup.attr('transform', e.transform);
+    const k = e.transform.k;
+    nodeGroup && nodeGroup.selectAll('text.node-label')
+      .filter(d => d.level === 2)
+      .attr('opacity', k > 1.8 ? 1 : 0);
+  });
+  svg.call(zoom);
+
+  zoomGroup  = svg.append('g');
+  linkGroup  = zoomGroup.append('g').attr('class', 'links');
+  nodeGroup  = zoomGroup.append('g').attr('class', 'nodes');
+
+  simulation = d3.forceSimulation()
+    .force('link', d3.forceLink().id(d => d.id)
+      .distance(d => {
+        const sl = d.source.level ?? 0, tl = d.target.level ?? 0;
+        if (sl === 0 || tl === 0) return 130;
+        if (sl === 1 && tl === 1) return 110;
+        return 70;
+      })
+      .strength(d => Math.max(0.04, (d.strength ?? 0.5) * 0.22))
+    )
+    .force('charge', d3.forceManyBody().strength(-220))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collide', d3.forceCollide().radius(d => nodeRadius(d) + 10).strength(0.85))
+    .on('tick', tick)
+    .stop();
+
+  window.addEventListener('resize', () => {
+    W = window.innerWidth; H = window.innerHeight - 58;
+    svg.attr('width', W).attr('height', H);
+    simulation?.force('center', d3.forceCenter(W / 2, H / 2));
+  });
+}
+
+function updateGraph() {
+  const nodes = [...nodesMap.values()];
+  const links = rawLinks.map(l => ({ source: l.s, target: l.t, strength: l.strength }));
+
+  linkGroup.selectAll('line.link')
+    .data(links, l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      return s < t ? `${s}|${t}` : `${t}|${s}`;
+    })
+    .join(
+      enter => enter.append('line').attr('class', 'link')
+        .attr('stroke', 'rgba(180,210,255,0.13)')
+        .attr('stroke-width', d => Math.max(0.4, d.strength * 2.5)),
+      update => update,
+      exit   => exit.remove()
+    );
+
+  const nodeSel = nodeGroup.selectAll('g.node').data(nodes, d => d.id);
+
+  const enter = nodeSel.enter().append('g').attr('class', 'node')
+    .on('mouseenter', onHover)
+    .on('mousemove',  onMove)
+    .on('mouseleave', onLeave)
+    .on('click',      onClick)
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  enter.filter(d => d.level === 0).append('circle').attr('class', 'halo')
+    .attr('r', d => nodeRadius(d) + 14)
+    .attr('fill', d => nodeColor(d))
+    .attr('opacity', 0.10)
+    .attr('filter', 'url(#glow)');
+
+  enter.append('circle').attr('class', 'node-circle')
+    .attr('r',            d => nodeRadius(d))
+    .attr('fill',         d => nodeColor(d))
+    .attr('stroke',       d => nodeColor(d))
+    .attr('stroke-width', d => d.level === 0 ? 3 : 1.5)
+    .attr('stroke-opacity', 0.85);
+
+  enter.append('text').attr('class', 'node-label')
+    .attr('text-anchor', 'middle')
+    .attr('dy',          d => nodeRadius(d) + 14)
+    .attr('font-size',   d => d.level === 0 ? 13 : d.level === 1 ? 11 : 9)
+    .attr('font-weight', d => d.level === 0 ? 700 : d.level === 1 ? 500 : 400)
+    .attr('fill', '#d0d8f0')
+    .attr('stroke', '#08090e').attr('stroke-width', 3).attr('paint-order', 'stroke')
+    .attr('opacity', d => d.level === 2 ? 0 : 1)
+    .text(d => d.name);
+
+  nodeSel.merge(enter).select('.node-circle')
+    .attr('fill', d => d.image ? `url(#pat-${d.id.replace(/\W/g,'_')})` : nodeColor(d));
+
+  nodeSel.exit().remove();
+
+  simulation.nodes(nodes);
+  simulation.force('link').links(links);
+  simulation.alpha(Math.max(simulation.alpha(), 0.35)).restart();
+}
+
+function applyImage(node) {
+  if (!node.image) return;
+  const patId = `pat-${node.id.replace(/\W/g,'_')}`;
+  defs.select(`#${patId}`).remove();
+
+  const pat = defs.append('pattern')
+    .attr('id', patId)
+    .attr('patternUnits', 'objectBoundingBox')
+    .attr('patternContentUnits', 'objectBoundingBox')
+    .attr('width', 1).attr('height', 1);
+
+  pat.append('rect').attr('width', 1).attr('height', 1).attr('fill', nodeColor(node));
+  pat.append('image')
+    .attr('href', node.image)
+    .attr('x', 0).attr('y', 0).attr('width', 1).attr('height', 1)
+    .attr('preserveAspectRatio', 'xMidYMid slice');
+
+  nodeGroup.selectAll('g.node').filter(d => d.id === node.id)
+    .select('.node-circle').attr('fill', `url(#${patId})`);
+}
+
+function tick() {
+  linkGroup.selectAll('line.link')
+    .attr('x1', d => d.source.x ?? 0).attr('y1', d => d.source.y ?? 0)
+    .attr('x2', d => d.target.x ?? 0).attr('y2', d => d.target.y ?? 0);
+  nodeGroup.selectAll('g.node')
+    .attr('transform', d => `translate(${d.x ?? 0},${d.y ?? 0})`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOVER / CLICK
+// ─────────────────────────────────────────────────────────────────────────────
+const tooltip     = document.getElementById('tooltip');
+const ttName      = document.getElementById('tt-name');
+const ttBadge     = document.getElementById('tt-badge');
+const ttMatch     = document.getElementById('tt-match');
+const ttListeners = document.getElementById('tt-listeners');
+const ttGenres    = document.getElementById('tt-genres');
+const ttHint      = document.getElementById('tt-hint');
+
+const BADGE_STYLES = [
+  { text: 'Input Artist',   bg: 'rgba(255,179,0,0.18)',  color: '#FFB300' },
+  { text: 'Direct Similar', bg: 'rgba(61,142,255,0.18)', color: '#3D8EFF' },
+  { text: '2nd Degree',     bg: 'rgba(155,107,255,0.18)',color: '#9B6BFF' },
+];
+
+function positionTooltip(event) {
+  const x = event.clientX + 16, y = event.clientY - 12;
+  tooltip.style.left = `${Math.min(x, window.innerWidth  - tooltip.offsetWidth  - 12)}px`;
+  tooltip.style.top  = `${Math.min(y, window.innerHeight - tooltip.offsetHeight - 12)}px`;
+}
+
+function onHover(event, d) {
+  const bs = BADGE_STYLES[d.level] || BADGE_STYLES[2];
+  ttName.textContent       = d.name;
+  ttBadge.textContent      = bs.text;
+  ttBadge.style.background = bs.bg;
+  ttBadge.style.color      = bs.color;
+  ttMatch.textContent      = d.level > 0 ? `Similarity: ${(d.match * 100).toFixed(0)}%` : '';
+  ttListeners.textContent  = d.listeners ? `${d.listeners.toLocaleString()} listeners` : '';
+  ttGenres.textContent     = d.genres?.length ? d.genres.join(' · ') : '';
+  ttHint.style.display     = d.level > 0 ? 'block' : 'none';
+  tooltip.style.display    = 'block';
+  positionTooltip(event);
+
+  const linked = new Set([d.id]);
+  rawLinks.forEach(l => {
+    if (l.s === d.id) linked.add(l.t);
+    if (l.t === d.id) linked.add(l.s);
+  });
+  nodeGroup.selectAll('g.node').attr('opacity', n => linked.has(n.id) ? 1 : 0.15);
+  linkGroup.selectAll('line.link').attr('opacity', l => {
+    const s = typeof l.source === 'object' ? l.source.id : l.source;
+    const t = typeof l.target === 'object' ? l.target.id : l.target;
+    return (s === d.id || t === d.id) ? 0.85 : 0.04;
+  });
+  if (d.level === 2) {
+    nodeGroup.selectAll('g.node').filter(n => n.id === d.id)
+      .select('text.node-label').attr('opacity', 1);
+  }
+}
+
+function onMove(event) { positionTooltip(event); }
+
+function onLeave(event, d) {
+  tooltip.style.display = 'none';
+  nodeGroup.selectAll('g.node').attr('opacity', 1);
+  linkGroup.selectAll('line.link').attr('opacity', 1);
+  if (d.level === 2) {
+    nodeGroup.selectAll('g.node').filter(n => n.id === d.id)
+      .select('text.node-label').attr('opacity', 0);
+  }
+}
+
+function onClick(event, d) {
+  event.stopPropagation();
+  if (d.level > 0 && !isSearching) {
+    document.getElementById('artist-input').value = d.name;
+    runSearch(d.name);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS / PROGRESS
+// ─────────────────────────────────────────────────────────────────────────────
+const statusBar    = document.getElementById('status-bar');
+const statusTxt    = document.getElementById('status-text');
+const progressWrap = document.getElementById('progress-wrap');
+const progressFill = document.getElementById('progress-fill');
+
+let _progressTotal = 0, _progressDone = 0;
+
+function setStatus(msg, withBar = false) {
+  statusBar.style.display    = 'block';
+  statusTxt.textContent      = msg;
+  progressWrap.style.display = withBar ? 'block' : 'none';
+}
+
+function initProgress(total) {
+  _progressTotal = total; _progressDone = 0;
+  progressFill.style.width   = '0%';
+  progressWrap.style.display = 'block';
+}
+
+function tickProgress(msg) {
+  _progressDone++;
+  const pct = Math.min(100, Math.round((_progressDone / _progressTotal) * 100));
+  progressFill.style.width = `${pct}%`;
+  if (msg) statusTxt.textContent = msg;
+}
+
+function clearStatus() {
+  setTimeout(() => { statusBar.style.display = 'none'; }, 2500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ERROR
+// ─────────────────────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('error-toast');
+  el.textContent   = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SEARCH
+// ─────────────────────────────────────────────────────────────────────────────
+let isSearching = false;
+
+async function runSearch(artistName) {
+  if (!artistName.trim()) return;
+  if (!Config.lfmKey) {
+    openSettings();
+    showError('Please add your Last.FM API key in settings first.');
+    return;
+  }
+  if (isSearching) return;
+
+  isSearching = true;
+  document.getElementById('search-btn').disabled = true;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('legend').style.display = 'block';
+
+  resetGraph();
+  linkGroup.selectAll('*').remove();
+  nodeGroup.selectAll('*').remove();
+  defs.selectAll('pattern').remove();
+
+  try {
+    setStatus(`Searching for "${artistName}"…`);
+    addNode(artistName, 0, 1);
+
+    let level1;
+    try {
+      level1 = await lfmGetSimilar(artistName, Config.LEVEL1_LIMIT);
+    } catch (e) {
+      throw new Error(`Artist "${artistName}" not found. Check the spelling and try again.`);
+    }
+    if (!level1.length) throw new Error(`No similar artists found for "${artistName}".`);
+
+    saveToRecent(artistName);
+
+    for (const a of level1) {
+      addNode(a.name, 1, a.match);
+      addLink(artistName, a.name, a.match);
+    }
+    updateGraph();
+
+    const l1Names = level1.map(a => a.name);
+    initProgress(l1Names.length);
+
+    await mapConcurrent(l1Names, Config.CONCURRENCY, async (name, i) => {
+      tickProgress(`Mapping connections… ${i + 1} / ${l1Names.length}`);
+      try {
+        const similar = await lfmGetSimilar(name, Config.LEVEL2_LIMIT);
+        for (const a of similar) {
+          if (nodesMap.has(nid(a.name))) {
+            addLink(name, a.name, a.match);
+          } else if (nodesMap.size < Config.MAX_NODES) {
+            addNode(a.name, 2, a.match);
+            addLink(name, a.name, a.match);
+          }
+        }
+        updateGraph();
+      } catch { }
+    });
+
+    setStatus(`${nodesMap.size} artists · ${rawLinks.length} connections`);
+
+    lfmGetInfo(artistName).then(info => {
+      if (!info) return;
+      const node = nodesMap.get(nid(artistName));
+      if (node) { node.listeners = info.listeners; node.url = info.url; }
+    });
+
+    const allNodes  = [...nodesMap.values()];
+    const hasSpotify = !!(Config.spClientId && Config.spClientSecret);
+
+    if (hasSpotify) {
+      initProgress(allNodes.length);
+      setStatus('Loading artist images…', true);
+
+      await mapConcurrent(allNodes, Config.CONCURRENCY, async node => {
+        tickProgress(`Images… ${_progressDone} / ${allNodes.length}`);
+        const info = await spSearchArtist(node.name);
+        if (info) {
+          node.image  = info.image;
+          node.genres = info.genres;
+          node.url    = node.url || info.url;
+          if (info.image) applyImage(node);
+        }
+      });
+    }
+
+    setStatus(`✓  ${nodesMap.size} artists · ${rawLinks.length} connections`);
+    clearStatus();
+
+  } catch (e) {
+    showError(e.message);
+    statusBar.style.display = 'none';
+  } finally {
+    isSearching = false;
+    document.getElementById('search-btn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RECENT SEARCHES
+// ─────────────────────────────────────────────────────────────────────────────
+function loadRecent() {
+  try { return JSON.parse(localStorage.getItem('recent_searches') || '[]'); }
+  catch { return []; }
+}
+
+function saveToRecent(name) {
+  let recent = loadRecent().filter(r => r.toLowerCase() !== name.toLowerCase());
+  recent.unshift(name);
+  localStorage.setItem('recent_searches', JSON.stringify(recent.slice(0, 10)));
+  renderRecent();
+}
+
+function renderRecent() {
+  const list   = document.getElementById('recent-list');
+  const recent = loadRecent();
+  if (!recent.length) {
+    list.innerHTML = '<div class="recent-empty">No recent searches yet</div>';
+    return;
+  }
+  list.innerHTML = recent.map(name =>
+    `<div class="recent-item" data-name="${name.replace(/"/g, '&quot;')}">
+      <span class="recent-item-icon">⏱</span>
+      <span class="recent-item-name">${name}</span>
+    </div>`
+  ).join('');
+  list.querySelectorAll('.recent-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const n = el.dataset.name;
+      document.getElementById('artist-input').value = n;
+      closeRecent();
+      runSearch(n);
+    });
+  });
+}
+
+function openRecent() {
+  renderRecent();
+  document.getElementById('recent-dropdown').classList.add('open');
+  document.getElementById('recent-btn').classList.add('active');
+}
+
+function closeRecent() {
+  document.getElementById('recent-dropdown').classList.remove('open');
+  document.getElementById('recent-btn').classList.remove('active');
+}
+
+document.getElementById('recent-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('recent-dropdown').classList.contains('open') ? closeRecent() : openRecent();
+});
+
+document.getElementById('recent-clear').addEventListener('click', e => {
+  e.stopPropagation();
+  localStorage.removeItem('recent_searches');
+  renderRecent();
+});
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('recent-wrapper').contains(e.target)) closeRecent();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS UI
+// ─────────────────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('cfg-lfm-key').value   = Config.lfmKey;
+  document.getElementById('cfg-sp-id').value     = Config.spClientId;
+  document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('modal-cancel').addEventListener('click', closeSettings);
+document.getElementById('settings-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+});
+document.getElementById('modal-save').addEventListener('click', () => {
+  localStorage.setItem('lfm_key',   document.getElementById('cfg-lfm-key').value.trim());
+  localStorage.setItem('sp_id',     document.getElementById('cfg-sp-id').value.trim());
+  localStorage.setItem('sp_secret', document.getElementById('cfg-sp-secret').value.trim());
+  _spToken = null; _spExpiry = 0;
+  closeSettings();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEARCH FORM
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('search-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('artist-input').value.trim();
+  if (val) runSearch(val);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STARFIELD
+// ─────────────────────────────────────────────────────────────────────────────
+function initStars() {
+  const canvas = document.getElementById('starfield');
+  const ctx    = canvas.getContext('2d');
+
+  function draw() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const count = Math.floor((canvas.width * canvas.height) / 2800);
+    for (let i = 0; i < count; i++) {
+      const x   = Math.random() * canvas.width;
+      const y   = Math.random() * canvas.height;
+      const big = Math.random() < 0.1;
+      const r   = big ? Math.random() * 1.2 + 0.8 : Math.random() * 0.7 + 0.2;
+      const a   = big ? Math.random() * 0.45 + 0.35 : Math.random() * 0.35 + 0.08;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,220,255,${a.toFixed(2)})`;
+      ctx.fill();
+    }
+  }
+
+  draw();
+  window.addEventListener('resize', draw);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+initD3();
+initStars();
+if (!Config.lfmKey) setTimeout(openSettings, 350);
+</script>
+</body>
+</html>
