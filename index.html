@@ -168,6 +168,7 @@
     #settings-modal {
       background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px; padding: 26px; width: 440px; max-width: 92vw;
+      max-height: 85vh; overflow-y: auto;
     }
     #settings-modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
     .modal-desc { font-size: 13px; color: var(--dim); margin-bottom: 14px; line-height: 1.5; }
@@ -303,6 +304,58 @@
       font-size: 11px; color: var(--dim); text-align: center;
       padding: 0 0 10px; line-height: 1.5;
     }
+
+    /* ── SHOWS & EVENTS ── */
+    .pp-section-header {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--dim); padding: 14px 0 8px; margin-top: 4px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .pp-country-select {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text);
+      cursor: pointer; outline: none; text-transform: none; letter-spacing: 0; font-weight: 400;
+    }
+    .pp-country-select:focus { border-color: var(--c1); }
+    .pp-event-item {
+      padding: 9px 10px; background: var(--surface2); border-radius: 8px;
+      margin-bottom: 6px; color: inherit; border: 1px solid transparent;
+      transition: border-color 0.15s, background 0.15s; display: block;
+    }
+    a.pp-event-item { text-decoration: none; }
+    a.pp-event-item:hover { background: rgba(61,142,255,0.08); border-color: var(--c1); }
+    .pp-event-date { font-size: 11px; color: var(--c1); font-weight: 600; margin-bottom: 3px; }
+    .pp-event-venue { font-size: 13px; color: var(--text); font-weight: 500; }
+    .pp-event-city { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .pp-event-subhead {
+      font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 6px; font-weight: 600;
+    }
+
+    /* ── NEWS SECTION ── */
+    .pp-news-item {
+      padding: 9px 10px; background: var(--surface2); border-radius: 8px;
+      margin-bottom: 6px; text-decoration: none; display: block; color: inherit;
+      border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
+    }
+    .pp-news-item:hover { background: rgba(61,142,255,0.08); border-color: var(--c1); }
+    .pp-news-source {
+      font-size: 10px; color: var(--c1); font-weight: 600; margin-bottom: 3px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .pp-news-title { font-size: 12px; color: var(--text); line-height: 1.45; }
+    .pp-news-date { font-size: 10px; color: var(--dim); margin-top: 4px; }
+    .pp-api-prompt {
+      padding: 14px 10px; text-align: center; font-size: 12px; color: var(--dim);
+      background: var(--surface2); border-radius: 8px; line-height: 1.5;
+    }
+    .pp-api-prompt button {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--c1); font-size: 11px; padding: 4px 12px; cursor: pointer;
+      margin-top: 8px; display: inline-block; transition: border-color 0.15s;
+    }
+    .pp-api-prompt button:hover { border-color: var(--c1); }
   </style>
 </head>
 <body>
@@ -396,6 +449,33 @@
       → Get Spotify credentials at developer.spotify.com/dashboard
     </a>
 
+    <div class="section-title">Setlist.fm — Optional (past shows)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-sl-key" placeholder="Setlist.fm API key…">
+    </div>
+    <a class="help-link" href="https://api.setlist.fm/docs/1.0/index.html" target="_blank" rel="noopener">
+      → Register at api.setlist.fm to get a free key
+    </a>
+
+    <div class="section-title">Ticketmaster — Optional (upcoming shows)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-tm-key" placeholder="Ticketmaster Discovery API key…">
+    </div>
+    <a class="help-link" href="https://developer.ticketmaster.com/products-and-docs/apis/getting-started/" target="_blank" rel="noopener">
+      → Free key at developer.ticketmaster.com
+    </a>
+
+    <div class="section-title">NewsAPI — Optional (news &amp; press)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-news-key" placeholder="NewsAPI.org API key…">
+    </div>
+    <a class="help-link" href="https://newsapi.org/register" target="_blank" rel="noopener">
+      → Free developer key at newsapi.org/register
+    </a>
+
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
       <button class="btn-primary" id="modal-save">Save &amp; Close</button>
@@ -415,7 +495,6 @@
     </div>
     <button id="pp-close" title="Close">✕</button>
   </div>
-  <div id="pp-section-label">Audience Insights</div>
   <div id="pp-list"></div>
   <div id="pp-footer">
     <button id="pp-explore">Explore Connections →</button>
@@ -431,6 +510,9 @@ const Config = {
   get lfmKey()       { return localStorage.getItem('lfm_key') || ''; },
   get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
+  get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
+  get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
+  get newsKey()       { return localStorage.getItem('news_key')  || ''; },  // NewsAPI
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
@@ -677,9 +759,6 @@ function renderAudienceInsights(data, artistName) {
   const spLink = spotify?.url || `https://open.spotify.com/search/${q}`;
   html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 6px">Audience Research</div>';
   html += `<div class="pp-research-grid">
-    <a class="pp-research-btn" href="https://sparktoro.com/research/search?q=${q}" target="_blank" rel="noopener">
-      SparkToro<span class="pp-research-sub">Online habits &amp; publications</span>
-    </a>
     <a class="pp-research-btn" href="https://trends.google.com/trends/explore?q=${q}" target="_blank" rel="noopener">
       Google Trends<span class="pp-research-sub">Interest by region &amp; age</span>
     </a>
@@ -720,6 +799,229 @@ async function spSearchArtist(name) {
       url        : artist.external_urls?.spotify,
     };
   } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHOWS  (Setlist.fm past · Ticketmaster upcoming)
+// ─────────────────────────────────────────────────────────────────────────────
+let _currentPastShows     = null;
+let _currentUpcomingShows = null;
+
+async function fetchPastShows(artistName) {
+  const key = Config.slKey;
+  if (!key) return null;
+  try {
+    const p = new URLSearchParams({ artistName, p: 1 });
+    const res = await fetch(`https://api.setlist.fm/rest/1.0/search/setlists?${p}`, {
+      headers: { 'x-api-key': key, 'Accept': 'application/json' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.setlist || []).map(s => ({
+      date        : s.eventDate,                          // "dd-MM-yyyy"
+      venue       : s.venue?.name || '—',
+      city        : s.venue?.city?.name || '',
+      country     : s.venue?.city?.country?.name || '',
+      countryCode : s.venue?.city?.country?.code || '',
+      url         : s.url || null,
+    }));
+  } catch { return null; }
+}
+
+async function fetchUpcomingShows(artistName) {
+  const key = Config.tmKey;
+  if (!key) return null;
+  try {
+    const p = new URLSearchParams({
+      keyword            : artistName,
+      classificationName : 'music',
+      size               : 20,
+      apikey             : key,
+    });
+    const res = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${p}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data._embedded?.events || []).map(e => {
+      const venue = e._embedded?.venues?.[0] || {};
+      return {
+        date        : e.dates?.start?.localDate || '',   // "yyyy-MM-dd"
+        time        : e.dates?.start?.localTime || '',
+        venue       : venue.name || '—',
+        city        : venue.city?.name || '',
+        country     : venue.country?.name || '',
+        countryCode : venue.country?.countryCode || '',
+        url         : e.url || null,
+      };
+    });
+  } catch { return null; }
+}
+
+function fmtSlDate(ddmmyyyy) {
+  if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return ddmmyyyy || '';
+  const [d, m, y] = ddmmyyyy.split('-');
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
+}
+
+function fmtTmDate(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const [y, m, d] = yyyymmdd.split('-');
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
+}
+
+function renderShowsInPanel(past, upcoming, artistName) {
+  _currentPastShows     = past;
+  _currentUpcomingShows = upcoming;
+  const showsEl = document.getElementById('pp-shows-content');
+  if (!showsEl) return;
+
+  if (past === null && upcoming === null) {
+    showsEl.innerHTML = `
+      <div class="pp-section-header">Where Are They Playing?</div>
+      <div class="pp-api-prompt">
+        Add Setlist.fm and/or Ticketmaster API keys to see shows.
+        <br><button onclick="openSettings()">Open Settings</button>
+      </div>`;
+    return;
+  }
+
+  // Collect available countries
+  const countryMap = new Map();
+  for (const s of [...(past || []), ...(upcoming || [])]) {
+    if (s.countryCode && s.country) countryMap.set(s.countryCode, s.country);
+  }
+
+  const defaultCC = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
+  const opts = [...countryMap.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([cc, name]) =>
+      `<option value="${cc}"${cc === defaultCC ? ' selected' : ''}>${name}</option>`)
+    .join('');
+
+  showsEl.innerHTML = `
+    <div class="pp-section-header">
+      Where Are They Playing?
+      ${countryMap.size ? `<select id="pp-country-select" class="pp-country-select"><option value="all">All countries</option>${opts}</select>` : ''}
+    </div>
+    <div id="pp-events-list"></div>`;
+
+  renderEventsForCountry(defaultCC);
+
+  const sel = document.getElementById('pp-country-select');
+  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
+
+function renderEventsForCountry(cc) {
+  const el = document.getElementById('pp-events-list');
+  if (!el) return;
+
+  const ok = s => !cc || cc === 'all' || s.countryCode === cc;
+  const past3     = (_currentPastShows     || []).filter(ok).slice(0, 3);
+  const upcoming3 = (_currentUpcomingShows || []).filter(ok).slice(0, 3);
+
+  function eventCard(s, past) {
+    const dateStr = past ? fmtSlDate(s.date) : fmtTmDate(s.date);
+    const loc     = [s.city, s.country].filter(Boolean).join(', ');
+    const inner   = `<div class="pp-event-date">${dateStr}</div>
+      <div class="pp-event-venue">${s.venue}</div>
+      <div class="pp-event-city">${loc}</div>`;
+    return s.url
+      ? `<a href="${s.url}" target="_blank" rel="noopener" class="pp-event-item">${inner}</a>`
+      : `<div class="pp-event-item">${inner}</div>`;
+  }
+
+  let html = '';
+
+  if (_currentUpcomingShows !== null) {
+    html += `<div class="pp-event-subhead">Upcoming</div>`;
+    html += upcoming3.length
+      ? upcoming3.map(s => eventCard(s, false)).join('')
+      : '<div style="font-size:12px;color:var(--dim);padding:4px 0 10px">No upcoming shows found.</div>';
+  }
+
+  if (_currentPastShows !== null) {
+    html += `<div class="pp-event-subhead" style="margin-top:10px">Recent Shows</div>`;
+    html += past3.length
+      ? past3.map(s => eventCard(s, true)).join('')
+      : '<div style="font-size:12px;color:var(--dim);padding:4px 0 10px">No recent shows found.</div>';
+  }
+
+  if (!html) html = '<div style="font-size:12px;color:var(--dim);padding:8px 0">No shows found for this country.</div>';
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEWS  (NewsAPI.org)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchNews(artistName) {
+  const key = Config.newsKey;
+  if (!key) return null;
+  try {
+    const p = new URLSearchParams({
+      q        : `"${artistName}"`,
+      sortBy   : 'publishedAt',
+      language : 'en',
+      pageSize : 6,
+      apiKey   : key,
+    });
+    const res  = await fetch(`https://newsapi.org/v2/everything?${p}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status !== 'ok') return null;
+    return (data.articles || []).filter(a => a.title && a.title !== '[Removed]').slice(0, 6);
+  } catch { return null; }
+}
+
+function fmtNewsDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d.getDate()} ${mo[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function renderNewsInPanel(articles, artistName) {
+  const newsEl = document.getElementById('pp-news-content');
+  if (!newsEl) return;
+
+  const q = encodeURIComponent(artistName);
+
+  if (articles === null) {
+    newsEl.innerHTML = `
+      <div class="pp-section-header">
+        News &amp; Media
+      </div>
+      <div class="pp-api-prompt">
+        Add a NewsAPI key to see press &amp; media coverage.
+        <br><button onclick="openSettings()">Open Settings</button>
+      </div>`;
+    return;
+  }
+
+  if (!articles.length) {
+    newsEl.innerHTML = `
+      <div class="pp-section-header">News &amp; Media</div>
+      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">No recent news found.</div>`;
+    return;
+  }
+
+  const items = articles.map(a => `
+    <a href="${a.url}" target="_blank" rel="noopener" class="pp-news-item">
+      <div class="pp-news-source">${a.source?.name || 'Unknown'}</div>
+      <div class="pp-news-title">${a.title}</div>
+      <div class="pp-news-date">${fmtNewsDate(a.publishedAt)}</div>
+    </a>`).join('');
+
+  newsEl.innerHTML = `
+    <div class="pp-section-header">
+      News &amp; Media
+      <a href="https://news.google.com/search?q=${q}" target="_blank" rel="noopener"
+         style="font-size:10px;color:var(--c1);text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500">
+        More →
+      </a>
+    </div>
+    ${items}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1057,11 +1359,13 @@ async function openPlaylistPanel(node) {
     exploreBtn.disabled = true;
   }
 
-  document.getElementById('pp-section-label').textContent = 'Audience Insights';
   document.getElementById('playlist-panel').classList.add('open');
 
   const listEl = document.getElementById('pp-list');
-  listEl.innerHTML = '<div class="pp-loading">Loading insights\u2026</div>';
+  listEl.innerHTML = `
+    <div id="pp-insights-content"><div class="pp-loading">Loading insights\u2026</div></div>
+    <div id="pp-shows-content"><div class="pp-loading">Loading shows\u2026</div></div>
+    <div id="pp-news-content"><div class="pp-loading">Loading news\u2026</div></div>`;
 
   // Fetch artist image + genres on-demand if not already loaded
   if (!node.image && !node._spFetched) {
@@ -1086,15 +1390,37 @@ async function openPlaylistPanel(node) {
     });
   }
 
-  const insights = await fetchAudienceInsights(node.name);
+  // Load all three sections in parallel
+  const [insR, pastR, upR, newsR] = await Promise.allSettled([
+    fetchAudienceInsights(node.name),
+    fetchPastShows(node.name),
+    fetchUpcomingShows(node.name),
+    fetchNews(node.name),
+  ]);
   if (_ppNode !== node) return; // panel switched while loading
 
-  const hasData = insights.spotify || insights.lfm || insights.mb;
-  if (!hasData) {
-    listEl.innerHTML = '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
-    return;
+  // Audience insights
+  const insightsEl = document.getElementById('pp-insights-content');
+  if (insightsEl) {
+    const ins     = insR.status === 'fulfilled' ? insR.value : null;
+    const hasData = ins?.spotify || ins?.lfm || ins?.mb;
+    insightsEl.innerHTML = hasData
+      ? renderAudienceInsights(ins, node.name)
+      : '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
   }
-  listEl.innerHTML = renderAudienceInsights(insights, node.name);
+
+  // Shows
+  renderShowsInPanel(
+    pastR.status === 'fulfilled' ? pastR.value : null,
+    upR.status   === 'fulfilled' ? upR.value   : null,
+    node.name
+  );
+
+  // News
+  renderNewsInPanel(
+    newsR.status === 'fulfilled' ? newsR.value : null,
+    node.name
+  );
 }
 
 function closePlaylistPanel() {
@@ -1376,6 +1702,9 @@ function openSettings() {
   document.getElementById('cfg-lfm-key').value   = Config.lfmKey;
   document.getElementById('cfg-sp-id').value     = Config.spClientId;
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
+  document.getElementById('cfg-sl-key').value    = Config.slKey;
+  document.getElementById('cfg-tm-key').value    = Config.tmKey;
+  document.getElementById('cfg-news-key').value  = Config.newsKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1392,6 +1721,9 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('lfm_key',    document.getElementById('cfg-lfm-key').value.trim());
   localStorage.setItem('sp_id',      document.getElementById('cfg-sp-id').value.trim());
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
+  localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
+  localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
+  localStorage.setItem('news_key',   document.getElementById('cfg-news-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
