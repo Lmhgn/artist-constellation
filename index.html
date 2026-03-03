@@ -790,12 +790,14 @@ async function fetchPastShows(artistName) {
   if (!Config.slKey) return null;   // null = key not configured → show prompt
   try {
     const params = new URLSearchParams({ artistName, p: 1 });
-    const res = await fetch(`https://api.setlist.fm/rest/1.0/search/setlists?${params}`, {
+    // Setlist.fm blocks null/file:// origins — route through CORS proxy
+    const target = `https://api.setlist.fm/rest/1.0/search/setlists?${params}`;
+    const res = await fetch(`https://corsproxy.io/?${target}`, {
       headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
     });
     if (!res.ok) {
       console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
-      return [];   // key configured but request failed → show empty state
+      return [];
     }
     const data = await res.json();
     return (data.setlist || []).map(s => ({
@@ -808,7 +810,7 @@ async function fetchPastShows(artistName) {
     }));
   } catch (e) {
     console.warn('[Setlist.fm] fetch error:', e);
-    return [];   // network / CORS error — check console for details
+    return [];
   }
 }
 
@@ -885,22 +887,24 @@ function renderEventsForCountry(cc) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEWS  (Google News RSS via rss2json.com — no API key required)
+// NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchNewsRSS(artistName) {
   try {
-    const rssUrl = `https://news.google.com/rss/search?q="${artistName}"&hl=en&gl=US&ceid=US:en`;
-    const api    = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=6`;
-    const res    = await fetch(api);
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(artistName)}&hl=en&gl=US&ceid=US:en`;
+    const res    = await fetch(`https://corsproxy.io/?${rssUrl}`);
     if (!res.ok) return [];
-    const data = await res.json();
-    if (data.status !== 'ok' || !data.items?.length) return [];
-    return data.items.map(item => {
-      // Google News titles: "Article headline - Source Name"
-      const sep    = item.title.lastIndexOf(' - ');
-      const title  = sep > 0 ? item.title.slice(0, sep).trim() : item.title.trim();
-      const source = sep > 0 ? item.title.slice(sep + 3).trim() : '';
-      return { title, source, url: item.link, date: item.pubDate };
+    const xml    = new DOMParser().parseFromString(await res.text(), 'text/xml');
+    return [...xml.querySelectorAll('item')].slice(0, 6).map(item => {
+      const rawTitle = item.querySelector('title')?.textContent  || '';
+      const link     = item.querySelector('link')?.textContent   || '';
+      const pubDate  = item.querySelector('pubDate')?.textContent || '';
+      const srcEl    = item.querySelector('source')?.textContent || '';
+      // Google News title format: "Headline - Source Name"
+      const sep    = rawTitle.lastIndexOf(' - ');
+      const title  = sep > 0 ? rawTitle.slice(0, sep).trim() : rawTitle.trim();
+      const source = srcEl  || (sep > 0 ? rawTitle.slice(sep + 3).trim() : '');
+      return { title, source, url: link, date: pubDate };
     });
   } catch (e) {
     console.warn('[NewsRSS] fetch error:', e);
