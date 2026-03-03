@@ -467,6 +467,15 @@
       → Register at api.setlist.fm to get a free key
     </a>
 
+    <div class="section-title">Ticketmaster — Optional (upcoming shows)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-tm-key" placeholder="Ticketmaster Discovery API key…">
+    </div>
+    <a class="help-link" href="https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/" target="_blank" rel="noopener">
+      → Free key at developer.ticketmaster.com
+    </a>
+
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
       <button class="btn-primary" id="modal-save">Save &amp; Close</button>
@@ -502,6 +511,7 @@ const Config = {
   get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
   get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
+  get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
@@ -862,6 +872,46 @@ async function fetchUpcomingShows(artistName) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING SHOWS  (Ticketmaster Discovery API — optional, excellent UK coverage)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchUpcomingShowsTM(artistName) {
+  if (!Config.tmKey) return [];
+  try {
+    const params = new URLSearchParams({
+      keyword            : artistName,
+      classificationName : 'music',
+      size               : 10,
+      sort               : 'date,asc',
+      apikey             : Config.tmKey,
+    });
+    // TM Discovery API supports CORS natively — no proxy needed
+    const res = await fetch(
+      `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
+    );
+    if (!res.ok) {
+      console.warn('[Ticketmaster] HTTP', res.status, res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    return (data._embedded?.events || []).map(e => {
+      const venue = e._embedded?.venues?.[0];
+      const cc    = venue?.country?.countryCode || venue?.country?.name || '';
+      return {
+        date        : e.dates?.start?.localDate || '',   // already YYYY-MM-DD
+        venue       : venue?.name || '—',
+        city        : venue?.city?.name || '',
+        country     : venue?.country?.name || '',
+        countryCode : cc,
+        url         : e.url || null,
+      };
+    }).filter(e => e.date);
+  } catch (err) {
+    console.warn('[Ticketmaster] fetch error:', err);
+    return [];
+  }
+}
+
 // Shared date formatter — expects 'YYYY-MM-DD'
 function fmtDate(yyyymmdd) {
   if (!yyyymmdd) return '';
@@ -935,14 +985,18 @@ function renderUpcomingShowsBody() {
   if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
 }
 
-// Merge setlist.fm upcoming (primary) with Bandsintown (supplement).
+// Merge setlist.fm + Ticketmaster (primary) + Bandsintown (supplement).
+// TM comes first (has ticket links + broad coverage), then SLF, then BIT.
 // Deduplicates by date + first 20 chars of venue name.
-function mergeUpcoming(slUpcoming, bitUpcoming) {
-  if (!bitUpcoming.length) return slUpcoming;
-  if (!slUpcoming.length)  return bitUpcoming;
-  const seen  = new Set(slUpcoming.map(s => `${s.date}|${s.venue.slice(0, 20).toLowerCase()}`));
-  const extra = bitUpcoming.filter(s => !seen.has(`${s.date}|${s.venue.slice(0, 20).toLowerCase()}`));
-  return [...slUpcoming, ...extra];
+function mergeUpcoming(slUpcoming, bitUpcoming, tmUpcoming = []) {
+  const all  = [...tmUpcoming, ...slUpcoming, ...bitUpcoming];
+  const seen = new Set();
+  return all.filter(s => {
+    const key = `${s.date}|${s.venue.slice(0, 20).toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function buildCountryMap(shows) {
@@ -969,7 +1023,7 @@ function renderEventsForCountry(cc) {
   if (!el) return;
 
   const src   = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
-  const limit = _activeShowsTab === 'past' ? 5 : 8;
+  const limit = 5;
   const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
 
   if (!shows.length) {
@@ -1420,11 +1474,12 @@ async function openPlaylistPanel(node) {
     });
   }
 
-  // Load all four sections in parallel
-  const [insR, pastR, upcomingR, newsR] = await Promise.allSettled([
+  // Load all sections in parallel (Bandsintown + Ticketmaster both queried for upcoming)
+  const [insR, pastR, bitR, tmR, newsR] = await Promise.allSettled([
     fetchAudienceInsights(node.name),
     fetchPastShows(node.name),
     fetchUpcomingShows(node.name),
+    fetchUpcomingShowsTM(node.name),
     fetchNewsRSS(node.name),
   ]);
   if (_ppNode !== node) return; // panel switched while loading
@@ -1439,10 +1494,11 @@ async function openPlaylistPanel(node) {
       : '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
   }
 
-  // Shows — split setlist.fm results by date, supplement upcoming with Bandsintown
-  const sl  = pastR.status     === 'fulfilled' ? pastR.value     : { past: null, upcoming: [] };
-  const bit = upcomingR.status === 'fulfilled' ? upcomingR.value : [];
-  renderShowsInPanel(sl.past, mergeUpcoming(sl.upcoming, bit));
+  // Shows — split setlist.fm results by date, supplement with Bandsintown + Ticketmaster
+  const sl  = pastR.status === 'fulfilled' ? pastR.value  : { past: null, upcoming: [] };
+  const bit = bitR.status  === 'fulfilled' ? bitR.value   : [];
+  const tm  = tmR.status   === 'fulfilled' ? tmR.value    : [];
+  renderShowsInPanel(sl.past, mergeUpcoming(sl.upcoming, bit, tm));
 
   // News
   renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : [], node.name);
@@ -1728,6 +1784,7 @@ function openSettings() {
   document.getElementById('cfg-sp-id').value     = Config.spClientId;
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
   document.getElementById('cfg-sl-key').value    = Config.slKey;
+  document.getElementById('cfg-tm-key').value    = Config.tmKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1745,6 +1802,7 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('sp_id',      document.getElementById('cfg-sp-id').value.trim());
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
   localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
+  localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
