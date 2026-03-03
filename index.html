@@ -449,31 +449,13 @@
       → Get Spotify credentials at developer.spotify.com/dashboard
     </a>
 
-    <div class="section-title">Setlist.fm — Optional (past shows)</div>
+    <div class="section-title">Setlist.fm — Optional (recent live shows)</div>
     <div class="field">
       <label>API Key</label>
       <input type="password" id="cfg-sl-key" placeholder="Setlist.fm API key…">
     </div>
     <a class="help-link" href="https://api.setlist.fm/docs/1.0/index.html" target="_blank" rel="noopener">
       → Register at api.setlist.fm to get a free key
-    </a>
-
-    <div class="section-title">Ticketmaster — Optional (upcoming shows)</div>
-    <div class="field">
-      <label>API Key</label>
-      <input type="password" id="cfg-tm-key" placeholder="Ticketmaster Discovery API key…">
-    </div>
-    <a class="help-link" href="https://developer.ticketmaster.com/products-and-docs/apis/getting-started/" target="_blank" rel="noopener">
-      → Free key at developer.ticketmaster.com
-    </a>
-
-    <div class="section-title">NewsAPI — Optional (news &amp; press)</div>
-    <div class="field">
-      <label>API Key</label>
-      <input type="password" id="cfg-news-key" placeholder="NewsAPI.org API key…">
-    </div>
-    <a class="help-link" href="https://newsapi.org/register" target="_blank" rel="noopener">
-      → Free developer key at newsapi.org/register
     </a>
 
     <div class="modal-footer">
@@ -511,8 +493,6 @@ const Config = {
   get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
   get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
-  get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
-  get newsKey()       { return localStorage.getItem('news_key')  || ''; },  // NewsAPI
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
@@ -802,58 +782,34 @@ async function spSearchArtist(name) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHOWS  (Setlist.fm past · Ticketmaster upcoming)
+// SHOWS  (Setlist.fm — past shows only)
 // ─────────────────────────────────────────────────────────────────────────────
-let _currentPastShows     = null;
-let _currentUpcomingShows = null;
+let _currentShows = null;
 
 async function fetchPastShows(artistName) {
-  const key = Config.slKey;
-  if (!key) return null;
+  if (!Config.slKey) return null;   // null = key not configured → show prompt
   try {
-    const p = new URLSearchParams({ artistName, p: 1 });
-    const res = await fetch(`https://api.setlist.fm/rest/1.0/search/setlists?${p}`, {
-      headers: { 'x-api-key': key, 'Accept': 'application/json' },
+    const params = new URLSearchParams({ artistName, p: 1 });
+    const res = await fetch(`https://api.setlist.fm/rest/1.0/search/setlists?${params}`, {
+      headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
+      return [];   // key configured but request failed → show empty state
+    }
     const data = await res.json();
     return (data.setlist || []).map(s => ({
-      date        : s.eventDate,                          // "dd-MM-yyyy"
+      date        : s.eventDate,
       venue       : s.venue?.name || '—',
       city        : s.venue?.city?.name || '',
       country     : s.venue?.city?.country?.name || '',
       countryCode : s.venue?.city?.country?.code || '',
       url         : s.url || null,
     }));
-  } catch { return null; }
-}
-
-async function fetchUpcomingShows(artistName) {
-  const key = Config.tmKey;
-  if (!key) return null;
-  try {
-    const p = new URLSearchParams({
-      keyword            : artistName,
-      classificationName : 'music',
-      size               : 20,
-      apikey             : key,
-    });
-    const res = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${p}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data._embedded?.events || []).map(e => {
-      const venue = e._embedded?.venues?.[0] || {};
-      return {
-        date        : e.dates?.start?.localDate || '',   // "yyyy-MM-dd"
-        time        : e.dates?.start?.localTime || '',
-        venue       : venue.name || '—',
-        city        : venue.city?.name || '',
-        country     : venue.country?.name || '',
-        countryCode : venue.country?.countryCode || '',
-        url         : e.url || null,
-      };
-    });
-  } catch { return null; }
+  } catch (e) {
+    console.warn('[Setlist.fm] fetch error:', e);
+    return [];   // network / CORS error — check console for details
+  }
 }
 
 function fmtSlDate(ddmmyyyy) {
@@ -863,32 +819,24 @@ function fmtSlDate(ddmmyyyy) {
   return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
 }
 
-function fmtTmDate(yyyymmdd) {
-  if (!yyyymmdd) return '';
-  const [y, m, d] = yyyymmdd.split('-');
-  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
-}
-
-function renderShowsInPanel(past, upcoming, artistName) {
-  _currentPastShows     = past;
-  _currentUpcomingShows = upcoming;
+function renderShowsInPanel(shows) {
+  _currentShows = shows;
   const showsEl = document.getElementById('pp-shows-content');
   if (!showsEl) return;
 
-  if (past === null && upcoming === null) {
+  if (shows === null) {
     showsEl.innerHTML = `
-      <div class="pp-section-header">Where Are They Playing?</div>
+      <div class="pp-section-header">Recent Shows</div>
       <div class="pp-api-prompt">
-        Add Setlist.fm and/or Ticketmaster API keys to see shows.
+        Add a Setlist.fm API key to see recent live shows.
         <br><button onclick="openSettings()">Open Settings</button>
       </div>`;
     return;
   }
 
-  // Collect available countries
+  // Build country dropdown from available shows
   const countryMap = new Map();
-  for (const s of [...(past || []), ...(upcoming || [])]) {
+  for (const s of shows) {
     if (s.countryCode && s.country) countryMap.set(s.countryCode, s.country);
   }
 
@@ -901,8 +849,8 @@ function renderShowsInPanel(past, upcoming, artistName) {
 
   showsEl.innerHTML = `
     <div class="pp-section-header">
-      Where Are They Playing?
-      ${countryMap.size ? `<select id="pp-country-select" class="pp-country-select"><option value="all">All countries</option>${opts}</select>` : ''}
+      Recent Shows
+      ${countryMap.size > 1 ? `<select id="pp-country-select" class="pp-country-select"><option value="all">All countries</option>${opts}</select>` : ''}
     </div>
     <div id="pp-events-list"></div>`;
 
@@ -916,66 +864,53 @@ function renderEventsForCountry(cc) {
   const el = document.getElementById('pp-events-list');
   if (!el) return;
 
-  const ok = s => !cc || cc === 'all' || s.countryCode === cc;
-  const past3     = (_currentPastShows     || []).filter(ok).slice(0, 3);
-  const upcoming3 = (_currentUpcomingShows || []).filter(ok).slice(0, 3);
+  const shows = (_currentShows || [])
+    .filter(s => !cc || cc === 'all' || s.countryCode === cc)
+    .slice(0, 5);
 
-  function eventCard(s, past) {
-    const dateStr = past ? fmtSlDate(s.date) : fmtTmDate(s.date);
-    const loc     = [s.city, s.country].filter(Boolean).join(', ');
-    const inner   = `<div class="pp-event-date">${dateStr}</div>
+  if (!shows.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--dim);padding:8px 0">No recent shows found.</div>';
+    return;
+  }
+
+  el.innerHTML = shows.map(s => {
+    const loc   = [s.city, s.country].filter(Boolean).join(', ');
+    const inner = `<div class="pp-event-date">${fmtSlDate(s.date)}</div>
       <div class="pp-event-venue">${s.venue}</div>
       <div class="pp-event-city">${loc}</div>`;
     return s.url
       ? `<a href="${s.url}" target="_blank" rel="noopener" class="pp-event-item">${inner}</a>`
       : `<div class="pp-event-item">${inner}</div>`;
-  }
-
-  let html = '';
-
-  if (_currentUpcomingShows !== null) {
-    html += `<div class="pp-event-subhead">Upcoming</div>`;
-    html += upcoming3.length
-      ? upcoming3.map(s => eventCard(s, false)).join('')
-      : '<div style="font-size:12px;color:var(--dim);padding:4px 0 10px">No upcoming shows found.</div>';
-  }
-
-  if (_currentPastShows !== null) {
-    html += `<div class="pp-event-subhead" style="margin-top:10px">Recent Shows</div>`;
-    html += past3.length
-      ? past3.map(s => eventCard(s, true)).join('')
-      : '<div style="font-size:12px;color:var(--dim);padding:4px 0 10px">No recent shows found.</div>';
-  }
-
-  if (!html) html = '<div style="font-size:12px;color:var(--dim);padding:8px 0">No shows found for this country.</div>';
-  el.innerHTML = html;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEWS  (NewsAPI.org)
+// NEWS  (Google News RSS via rss2json.com — no API key required)
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchNews(artistName) {
-  const key = Config.newsKey;
-  if (!key) return null;
+async function fetchNewsRSS(artistName) {
   try {
-    const p = new URLSearchParams({
-      q        : `"${artistName}"`,
-      sortBy   : 'publishedAt',
-      language : 'en',
-      pageSize : 6,
-      apiKey   : key,
-    });
-    const res  = await fetch(`https://newsapi.org/v2/everything?${p}`);
-    if (!res.ok) return null;
+    const rssUrl = `https://news.google.com/rss/search?q="${artistName}"&hl=en&gl=US&ceid=US:en`;
+    const api    = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=6`;
+    const res    = await fetch(api);
+    if (!res.ok) return [];
     const data = await res.json();
-    if (data.status !== 'ok') return null;
-    return (data.articles || []).filter(a => a.title && a.title !== '[Removed]').slice(0, 6);
-  } catch { return null; }
+    if (data.status !== 'ok' || !data.items?.length) return [];
+    return data.items.map(item => {
+      // Google News titles: "Article headline - Source Name"
+      const sep    = item.title.lastIndexOf(' - ');
+      const title  = sep > 0 ? item.title.slice(0, sep).trim() : item.title.trim();
+      const source = sep > 0 ? item.title.slice(sep + 3).trim() : '';
+      return { title, source, url: item.link, date: item.pubDate };
+    });
+  } catch (e) {
+    console.warn('[NewsRSS] fetch error:', e);
+    return [];
+  }
 }
 
-function fmtNewsDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
+function fmtNewsDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
   if (isNaN(d)) return '';
   const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d.getDate()} ${mo[d.getMonth()]} ${d.getFullYear()}`;
@@ -987,18 +922,6 @@ function renderNewsInPanel(articles, artistName) {
 
   const q = encodeURIComponent(artistName);
 
-  if (articles === null) {
-    newsEl.innerHTML = `
-      <div class="pp-section-header">
-        News &amp; Media
-      </div>
-      <div class="pp-api-prompt">
-        Add a NewsAPI key to see press &amp; media coverage.
-        <br><button onclick="openSettings()">Open Settings</button>
-      </div>`;
-    return;
-  }
-
   if (!articles.length) {
     newsEl.innerHTML = `
       <div class="pp-section-header">News &amp; Media</div>
@@ -1008,9 +931,9 @@ function renderNewsInPanel(articles, artistName) {
 
   const items = articles.map(a => `
     <a href="${a.url}" target="_blank" rel="noopener" class="pp-news-item">
-      <div class="pp-news-source">${a.source?.name || 'Unknown'}</div>
+      ${a.source ? `<div class="pp-news-source">${a.source}</div>` : ''}
       <div class="pp-news-title">${a.title}</div>
-      <div class="pp-news-date">${fmtNewsDate(a.publishedAt)}</div>
+      <div class="pp-news-date">${fmtNewsDate(a.date)}</div>
     </a>`).join('');
 
   newsEl.innerHTML = `
@@ -1391,11 +1314,10 @@ async function openPlaylistPanel(node) {
   }
 
   // Load all three sections in parallel
-  const [insR, pastR, upR, newsR] = await Promise.allSettled([
+  const [insR, pastR, newsR] = await Promise.allSettled([
     fetchAudienceInsights(node.name),
     fetchPastShows(node.name),
-    fetchUpcomingShows(node.name),
-    fetchNews(node.name),
+    fetchNewsRSS(node.name),
   ]);
   if (_ppNode !== node) return; // panel switched while loading
 
@@ -1410,17 +1332,10 @@ async function openPlaylistPanel(node) {
   }
 
   // Shows
-  renderShowsInPanel(
-    pastR.status === 'fulfilled' ? pastR.value : null,
-    upR.status   === 'fulfilled' ? upR.value   : null,
-    node.name
-  );
+  renderShowsInPanel(pastR.status === 'fulfilled' ? pastR.value : null);
 
   // News
-  renderNewsInPanel(
-    newsR.status === 'fulfilled' ? newsR.value : null,
-    node.name
-  );
+  renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : [], node.name);
 }
 
 function closePlaylistPanel() {
@@ -1703,8 +1618,6 @@ function openSettings() {
   document.getElementById('cfg-sp-id').value     = Config.spClientId;
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
   document.getElementById('cfg-sl-key').value    = Config.slKey;
-  document.getElementById('cfg-tm-key').value    = Config.tmKey;
-  document.getElementById('cfg-news-key').value  = Config.newsKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1722,8 +1635,6 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('sp_id',      document.getElementById('cfg-sp-id').value.trim());
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
   localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
-  localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
-  localStorage.setItem('news_key',   document.getElementById('cfg-news-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
