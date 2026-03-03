@@ -797,38 +797,44 @@ let _showsData       = { past: null, upcoming: [] };
 let _activeShowsTab  = 'past';
 
 async function fetchPastShows(artistName) {
-  if (!Config.slKey) return null;   // null = key not configured → show prompt
+  // Returns { past: null|[], upcoming: [] }
+  // null past = key not configured (shows API prompt); [] = key set but no results
+  if (!Config.slKey) return { past: null, upcoming: [] };
   try {
     const params = new URLSearchParams({ artistName, p: 1 });
-    // Setlist.fm blocks null/file:// origins — route through CORS proxy
     const target = `https://api.setlist.fm/rest/1.0/search/setlists?${params}`;
     const res = await fetch(`https://corsproxy.io/?${target}`, {
       headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
     });
     if (!res.ok) {
       console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
-      return [];
+      return { past: [], upcoming: [] };
     }
-    const data = await res.json();
-    return (data.setlist || []).map(s => ({
-      date        : s.eventDate,
+    const data  = await res.json();
+    const today = new Date().toISOString().split('T')[0];   // 'YYYY-MM-DD'
+    const all   = (data.setlist || []).map(s => ({
+      date        : normSlDate(s.eventDate),  // normalise to YYYY-MM-DD
       venue       : s.venue?.name || '—',
       city        : s.venue?.city?.name || '',
       country     : s.venue?.city?.country?.name || '',
       countryCode : s.venue?.city?.country?.code || '',
       url         : s.url || null,
     }));
+    return {
+      past     : all.filter(s => s.date <  today),
+      upcoming : all.filter(s => s.date >= today),
+    };
   } catch (e) {
     console.warn('[Setlist.fm] fetch error:', e);
-    return [];
+    return { past: [], upcoming: [] };
   }
 }
 
-function fmtSlDate(ddmmyyyy) {
-  if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return ddmmyyyy || '';
+// 'dd-mm-yyyy' → 'YYYY-MM-DD'  (safe to compare as strings)
+function normSlDate(ddmmyyyy) {
+  if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return '';
   const [d, m, y] = ddmmyyyy.split('-');
-  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
+  return `${y}-${m}-${d}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -843,11 +849,11 @@ async function fetchUpcomingShows(artistName) {
     const data = await res.json();
     if (!Array.isArray(data)) return [];
     return data.map(e => ({
-      date        : e.datetime,
+      date        : (e.datetime || '').split('T')[0],   // normalise to YYYY-MM-DD
       venue       : e.venue?.name || '—',
       city        : [e.venue?.city, e.venue?.region].filter(Boolean).join(', '),
       country     : e.venue?.country || '',
-      countryCode : e.venue?.country || '',   // Bandsintown gives full name, use as key
+      countryCode : e.venue?.country || '',
       url         : e.url || null,
     }));
   } catch (err) {
@@ -856,10 +862,11 @@ async function fetchUpcomingShows(artistName) {
   }
 }
 
-function fmtBitDate(iso) {
-  if (!iso) return '';
-  const [datePart] = iso.split('T');
-  const [y, m, d]  = datePart.split('-').map(Number);
+// Shared date formatter — expects 'YYYY-MM-DD'
+function fmtDate(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const [y, m, d] = yyyymmdd.split('-').map(Number);
+  if (!y || !m || !d) return yyyymmdd;
   const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d} ${mo[m - 1]} ${y}`;
 }
@@ -919,12 +926,23 @@ function renderUpcomingShowsBody() {
   if (!el) return;
 
   const countryMap = buildCountryMap(_showsData.upcoming);
-  const preferred  = ['United States', 'United Kingdom'];
+  // Setlist.fm uses ISO codes ('GB','US'); Bandsintown uses full names — cover both
+  const preferred  = ['GB', 'US', 'United Kingdom', 'United States'];
   const defaultCC  = preferred.find(c => countryMap.has(c)) || countryMap.keys().next().value || 'all';
   el.innerHTML = countryDropdown(countryMap, defaultCC) + '<div id="pp-events-list"></div>';
   renderEventsForCountry(defaultCC);
   const sel = document.getElementById('pp-country-select');
   if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
+
+// Merge setlist.fm upcoming (primary) with Bandsintown (supplement).
+// Deduplicates by date + first 20 chars of venue name.
+function mergeUpcoming(slUpcoming, bitUpcoming) {
+  if (!bitUpcoming.length) return slUpcoming;
+  if (!slUpcoming.length)  return bitUpcoming;
+  const seen  = new Set(slUpcoming.map(s => `${s.date}|${s.venue.slice(0, 20).toLowerCase()}`));
+  const extra = bitUpcoming.filter(s => !seen.has(`${s.date}|${s.venue.slice(0, 20).toLowerCase()}`));
+  return [...slUpcoming, ...extra];
 }
 
 function buildCountryMap(shows) {
@@ -950,9 +968,8 @@ function renderEventsForCountry(cc) {
   const el = document.getElementById('pp-events-list');
   if (!el) return;
 
-  const src    = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
-  const fmtFn  = _activeShowsTab === 'past' ? fmtSlDate : fmtBitDate;
-  const limit  = _activeShowsTab === 'past' ? 5 : 8;
+  const src   = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
+  const limit = _activeShowsTab === 'past' ? 5 : 8;
   const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
 
   if (!shows.length) {
@@ -963,7 +980,7 @@ function renderEventsForCountry(cc) {
 
   el.innerHTML = shows.map(s => {
     const loc   = [s.city, s.country].filter(Boolean).join(', ');
-    const inner = `<div class="pp-event-date">${fmtFn(s.date)}</div>
+    const inner = `<div class="pp-event-date">${fmtDate(s.date)}</div>
       <div class="pp-event-venue">${s.venue}</div>
       <div class="pp-event-city">${loc}</div>`;
     return s.url
@@ -1422,11 +1439,10 @@ async function openPlaylistPanel(node) {
       : '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
   }
 
-  // Shows
-  renderShowsInPanel(
-    pastR.status     === 'fulfilled' ? pastR.value     : null,
-    upcomingR.status === 'fulfilled' ? upcomingR.value : [],
-  );
+  // Shows — split setlist.fm results by date, supplement upcoming with Bandsintown
+  const sl  = pastR.status     === 'fulfilled' ? pastR.value     : { past: null, upcoming: [] };
+  const bit = upcomingR.status === 'fulfilled' ? upcomingR.value : [];
+  renderShowsInPanel(sl.past, mergeUpcoming(sl.upcoming, bit));
 
   // News
   renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : [], node.name);
