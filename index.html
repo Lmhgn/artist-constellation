@@ -282,6 +282,15 @@
     /* genre tags */
     .pp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
     .pp-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: var(--dim); }
+    /* shows tab toggle — same shape as genre bubbles */
+    .pp-tab-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+    .pp-tab-btn {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+      padding: 4px 11px; font-size: 11px; color: var(--dim); cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pp-tab-btn.active { background: var(--c1); border-color: var(--c1); color: #fff; }
+    .pp-tab-btn:not(.active):hover { border-color: var(--c1); color: var(--text); }
     /* research links */
     .pp-research-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .pp-research-btn {
@@ -784,7 +793,8 @@ async function spSearchArtist(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SHOWS  (Setlist.fm — past shows only)
 // ─────────────────────────────────────────────────────────────────────────────
-let _currentShows = null;
+let _showsData       = { past: null, upcoming: [] };
+let _activeShowsTab  = 'past';
 
 async function fetchPastShows(artistName) {
   if (!Config.slKey) return null;   // null = key not configured → show prompt
@@ -821,63 +831,139 @@ function fmtSlDate(ddmmyyyy) {
   return `${parseInt(d)} ${mo[parseInt(m) - 1]} ${y}`;
 }
 
-function renderShowsInPanel(shows) {
-  _currentShows = shows;
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING SHOWS  (Bandsintown — no API key required)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchUpcomingShows(artistName) {
+  try {
+    const encoded = encodeURIComponent(artistName);
+    const target  = `https://rest.bandsintown.com/artists/${encoded}/events?app_id=artist-constellation`;
+    const res     = await fetch(`https://corsproxy.io/?${target}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(e => ({
+      date        : e.datetime,
+      venue       : e.venue?.name || '—',
+      city        : [e.venue?.city, e.venue?.region].filter(Boolean).join(', '),
+      country     : e.venue?.country || '',
+      countryCode : e.venue?.country || '',   // Bandsintown gives full name, use as key
+      url         : e.url || null,
+    }));
+  } catch (err) {
+    console.warn('[Bandsintown] fetch error:', err);
+    return [];
+  }
+}
+
+function fmtBitDate(iso) {
+  if (!iso) return '';
+  const [datePart] = iso.split('T');
+  const [y, m, d]  = datePart.split('-').map(Number);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${mo[m - 1]} ${y}`;
+}
+
+function renderShowsInPanel(past, upcoming) {
+  _showsData      = { past, upcoming };
+  _activeShowsTab = 'past';
   const showsEl = document.getElementById('pp-shows-content');
   if (!showsEl) return;
 
-  if (shows === null) {
-    showsEl.innerHTML = `
-      <div class="pp-section-header">Recent Shows</div>
+  showsEl.innerHTML = `
+    <div class="pp-section-header">Shows</div>
+    <div class="pp-tab-toggle">
+      <button class="pp-tab-btn active" data-tab="past"     onclick="switchShowsTab('past')">Past</button>
+      <button class="pp-tab-btn"        data-tab="upcoming" onclick="switchShowsTab('upcoming')">Upcoming</button>
+    </div>
+    <div id="pp-shows-body"></div>`;
+
+  renderShowsBody();
+}
+
+function switchShowsTab(tab) {
+  _activeShowsTab = tab;
+  document.querySelectorAll('.pp-tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  renderShowsBody();
+}
+
+function renderShowsBody() {
+  if (_activeShowsTab === 'past') renderPastShowsBody();
+  else renderUpcomingShowsBody();
+}
+
+function renderPastShowsBody() {
+  const el = document.getElementById('pp-shows-body');
+  if (!el) return;
+
+  if (_showsData.past === null) {
+    el.innerHTML = `
       <div class="pp-api-prompt">
-        Add a Setlist.fm API key to see recent live shows.
+        Add a Setlist.fm API key to see past shows.
         <br><button onclick="openSettings()">Open Settings</button>
       </div>`;
     return;
   }
 
-  // Build country dropdown from available shows
-  const countryMap = new Map();
-  for (const s of shows) {
-    if (s.countryCode && s.country) countryMap.set(s.countryCode, s.country);
-  }
+  const countryMap = buildCountryMap(_showsData.past);
+  const defaultCC  = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
+  el.innerHTML = countryDropdown(countryMap, defaultCC) + '<div id="pp-events-list"></div>';
+  renderEventsForCountry(defaultCC);
+  const sel = document.getElementById('pp-country-select');
+  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
 
-  const defaultCC = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
+function renderUpcomingShowsBody() {
+  const el = document.getElementById('pp-shows-body');
+  if (!el) return;
+
+  const countryMap = buildCountryMap(_showsData.upcoming);
+  const preferred  = ['United States', 'United Kingdom'];
+  const defaultCC  = preferred.find(c => countryMap.has(c)) || countryMap.keys().next().value || 'all';
+  el.innerHTML = countryDropdown(countryMap, defaultCC) + '<div id="pp-events-list"></div>';
+  renderEventsForCountry(defaultCC);
+  const sel = document.getElementById('pp-country-select');
+  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
+
+function buildCountryMap(shows) {
+  const map = new Map();
+  for (const s of (shows || [])) {
+    if (s.countryCode && s.country) map.set(s.countryCode, s.country);
+  }
+  return map;
+}
+
+function countryDropdown(countryMap, defaultCC) {
+  if (countryMap.size <= 1) return '';
   const opts = [...countryMap.entries()]
     .sort((a, b) => a[1].localeCompare(b[1]))
     .map(([cc, name]) =>
       `<option value="${cc}"${cc === defaultCC ? ' selected' : ''}>${name}</option>`)
     .join('');
-
-  showsEl.innerHTML = `
-    <div class="pp-section-header">
-      Recent Shows
-      ${countryMap.size > 1 ? `<select id="pp-country-select" class="pp-country-select"><option value="all">All countries</option>${opts}</select>` : ''}
-    </div>
-    <div id="pp-events-list"></div>`;
-
-  renderEventsForCountry(defaultCC);
-
-  const sel = document.getElementById('pp-country-select');
-  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+  return `<select id="pp-country-select" class="pp-country-select" style="margin-bottom:8px">
+    <option value="all">All countries</option>${opts}</select>`;
 }
 
 function renderEventsForCountry(cc) {
   const el = document.getElementById('pp-events-list');
   if (!el) return;
 
-  const shows = (_currentShows || [])
-    .filter(s => !cc || cc === 'all' || s.countryCode === cc)
-    .slice(0, 5);
+  const src    = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
+  const fmtFn  = _activeShowsTab === 'past' ? fmtSlDate : fmtBitDate;
+  const limit  = _activeShowsTab === 'past' ? 5 : 8;
+  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
 
   if (!shows.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--dim);padding:8px 0">No recent shows found.</div>';
+    const msg = _activeShowsTab === 'past' ? 'No past shows found.' : 'No upcoming shows found.';
+    el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:8px 0">${msg}</div>`;
     return;
   }
 
   el.innerHTML = shows.map(s => {
     const loc   = [s.city, s.country].filter(Boolean).join(', ');
-    const inner = `<div class="pp-event-date">${fmtSlDate(s.date)}</div>
+    const inner = `<div class="pp-event-date">${fmtFn(s.date)}</div>
       <div class="pp-event-venue">${s.venue}</div>
       <div class="pp-event-city">${loc}</div>`;
     return s.url
@@ -1317,10 +1403,11 @@ async function openPlaylistPanel(node) {
     });
   }
 
-  // Load all three sections in parallel
-  const [insR, pastR, newsR] = await Promise.allSettled([
+  // Load all four sections in parallel
+  const [insR, pastR, upcomingR, newsR] = await Promise.allSettled([
     fetchAudienceInsights(node.name),
     fetchPastShows(node.name),
+    fetchUpcomingShows(node.name),
     fetchNewsRSS(node.name),
   ]);
   if (_ppNode !== node) return; // panel switched while loading
@@ -1336,7 +1423,10 @@ async function openPlaylistPanel(node) {
   }
 
   // Shows
-  renderShowsInPanel(pastR.status === 'fulfilled' ? pastR.value : null);
+  renderShowsInPanel(
+    pastR.status     === 'fulfilled' ? pastR.value     : null,
+    upcomingR.status === 'fulfilled' ? upcomingR.value : [],
+  );
 
   // News
   renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : [], node.name);
