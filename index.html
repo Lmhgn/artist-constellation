@@ -1655,9 +1655,26 @@ function onLeave(event, d) {
   }
 }
 
+let _clickTimer = null;
+
 function onClick(event, d) {
   event.stopPropagation();
-  openPlaylistPanel(d);
+  if (_clickTimer) {
+    // Second click arrived within 250 ms — treat as double-click: explore directly
+    clearTimeout(_clickTimer);
+    _clickTimer = null;
+    if (d.level > 0 && !isSearching) {
+      closePlaylistPanel();
+      document.getElementById('artist-input').value = d.name;
+      runSearch(d.name);
+    }
+  } else {
+    // First click — wait to see if a second arrives before opening the panel
+    _clickTimer = setTimeout(() => {
+      _clickTimer = null;
+      openPlaylistPanel(d);
+    }, 250);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
