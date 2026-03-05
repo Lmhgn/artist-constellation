@@ -444,7 +444,7 @@
     <p class="modal-desc">Keys are stored only in your browser's localStorage — never sent anywhere except the official APIs.</p>
 
     <div class="api-notice">
-      🔑 Don't have the API codes yet? Ask Liam.
+      Keys are pre-filled. You can override any key here with your own.
     </div>
 
     <div class="section-title">Last.FM — Required (similarity data)</div>
@@ -2067,9 +2067,19 @@ function initStars() {
   window.addEventListener('resize', draw);
 }
 
-// Pre-seed the shared GNews key so users don't need to enter it manually.
-// They can still override it in Settings with their own key.
-if (!Config.gnewsKey) localStorage.setItem('gnews_key', 'b584f437a0458dfe7396c649e19e7eb9');
+// Pre-seed all shared API keys so the app works on first load with no setup.
+// Keys are only written if the user hasn't already stored their own value.
+const _defaults = {
+  lfm_key   : 'cb9ba950706c294c0fbf76e0ba3c6c1e',
+  sp_id     : '7abe92b568544088a4d7e8ebbed3b398',
+  sp_secret : 'b4713f0de67b41188c194939de2c498c',
+  sl_key    : 'C_ljrqZ6fo4FglNYtDk96WjdOoaIMPKNZZ3I',
+  tm_key    : '0oAzkLjM2wYvrhikuqMbcaA8GlniyQCD',
+  gnews_key : 'b584f437a0458dfe7396c649e19e7eb9',
+};
+for (const [k, v] of Object.entries(_defaults)) {
+  if (!localStorage.getItem(k)) localStorage.setItem(k, v);
+}
 
 initD3();
 initStars();
