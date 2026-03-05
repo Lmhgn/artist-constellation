@@ -1182,8 +1182,21 @@ async function fetchNewsRSS(artistName) {
     const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(artistName)}&hl=en&gl=US&ceid=US:en`;
     const res    = await proxyFetch(rssUrl);
     if (!res) return 'proxy_error';
-    if (!res.ok) return [];
-    const xml    = new DOMParser().parseFromString(await res.text(), 'text/xml');
+    if (!res.ok) {
+      console.warn('[NewsRSS] HTTP', res.status);
+      return 'proxy_error';
+    }
+    const text = await res.text();
+    const xml  = new DOMParser().parseFromString(text, 'text/xml');
+
+    // DOMParser returns a parsererror document when the body isn't valid XML.
+    // This happens when Google blocks the proxy IP and returns an HTML error page
+    // with a 200 status — the most common reason news is blank for users.
+    if (xml.querySelector('parsererror') || !xml.querySelector('channel')) {
+      console.warn('[NewsRSS] Response was not valid RSS (proxy IP may be blocked by Google)');
+      return 'proxy_error';
+    }
+
     return [...xml.querySelectorAll('item')].slice(0, 6).map(item => {
       const rawTitle = item.querySelector('title')?.textContent  || '';
       const link     = item.querySelector('link')?.textContent   || '';
@@ -1197,7 +1210,7 @@ async function fetchNewsRSS(artistName) {
     });
   } catch (e) {
     console.warn('[NewsRSS] fetch error:', e);
-    return [];
+    return 'proxy_error';
   }
 }
 
@@ -1643,7 +1656,7 @@ async function openPlaylistPanel(node) {
   renderShowsInPanel(sl.past, mergeUpcoming(sl.upcoming, bit, tm));
 
   // News
-  renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : [], node.name);
+  renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : 'proxy_error', node.name);
 }
 
 function closePlaylistPanel() {
