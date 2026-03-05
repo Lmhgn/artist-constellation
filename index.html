@@ -527,32 +527,73 @@ const Config = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CORS PROXY  — corsproxy.io primary, allorigins.win fallback
-// corsproxy.io forwards custom request headers (needed for Setlist.fm auth).
-// allorigins.win does not forward custom headers but works for public APIs.
+// CORS PROXY  — three-tier fallback chain
+//
+// Header-forwarding proxies (needed for Setlist.fm x-api-key):
+//   1. corsproxy.io   — primary
+//   2. cors.sh        — secondary (free, forwards all headers)
+//
+// No-header proxies (fine for Google News RSS, Bandsintown):
+//   3. allorigins.win — last resort (does NOT forward custom headers)
+//
+// Windows corporate/school networks or AV software often block corsproxy.io.
+// The chain ensures something works in most environments.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Safely create an AbortSignal with a timeout (AbortSignal.timeout may be
+// undefined in older Edge/Safari builds still found on Windows).
+function _abortTimeout(ms) {
+  try { return AbortSignal.timeout(ms); } catch (_) {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+  }
+}
+
 async function proxyFetch(url, init = {}) {
-  // Primary: corsproxy.io (forwards all request headers)
+  const hasCustomHeaders = init.headers && Object.keys(init.headers).length > 0;
+
+  // ── 1. corsproxy.io — forwards all request headers ──
   try {
     const r = await fetch(`https://corsproxy.io/?${url}`, {
       ...init,
-      signal: AbortSignal.timeout(8000),
+      signal: _abortTimeout(9000),
     });
     if (r.ok) return r;
-    if (r.status >= 400) return r;   // real HTTP error — no point retrying
+    if (r.status >= 400 && r.status !== 429) return r; // real error, stop
   } catch (e) {
     if (e.name !== 'AbortError') console.warn('[proxyFetch] corsproxy.io:', e.message);
   }
-  // Fallback: allorigins.win (no custom header forwarding — fine for public APIs)
-  try {
-    return await fetch(
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      { signal: AbortSignal.timeout(8000) },
-    );
-  } catch (e) {
-    console.warn('[proxyFetch] allorigins.win:', e.message);
-    return null;
+
+  // ── 2. cors.sh — forwards all request headers (good Windows fallback) ──
+  if (hasCustomHeaders) {
+    try {
+      const r = await fetch(`https://proxy.cors.sh/${url}`, {
+        ...init,
+        signal: _abortTimeout(9000),
+      });
+      if (r.ok) return r;
+      if (r.status >= 400 && r.status !== 429) return r;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.warn('[proxyFetch] cors.sh:', e.message);
+    }
   }
+
+  // ── 3. allorigins.win — no custom header forwarding; skip for auth'd APIs ──
+  if (!hasCustomHeaders) {
+    try {
+      const r = await fetch(
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        { signal: _abortTimeout(9000) },
+      );
+      if (r && r.ok) return r;
+    } catch (e) {
+      console.warn('[proxyFetch] allorigins.win:', e.message);
+    }
+  }
+
+  console.warn('[proxyFetch] all proxies failed for', url);
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -894,6 +935,10 @@ async function fetchPastShows(artistName) {
     const res = await proxyFetch(target, {
       headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
     });
+    if (!res) {
+      console.warn('[Setlist.fm] all proxies failed — network/firewall issue?');
+      return { past: 'proxy_error', upcoming: [] };
+    }
     if (!res.ok) {
       console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
       return { past: [], upcoming: [] };
@@ -1040,6 +1085,14 @@ function renderPastShowsBody() {
       </div>`;
     return;
   }
+  if (_showsData.past === 'proxy_error') {
+    el.innerHTML = `
+      <div class="pp-api-prompt" style="color:var(--dim)">
+        Could not reach Setlist.fm — a network or firewall issue is blocking
+        the request. Try on a different network or VPN.
+      </div>`;
+    return;
+  }
 
   const countryMap = buildCountryMap(_showsData.past);
   const defaultCC  = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
@@ -1128,6 +1181,7 @@ async function fetchNewsRSS(artistName) {
   try {
     const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(artistName)}&hl=en&gl=US&ceid=US:en`;
     const res    = await proxyFetch(rssUrl);
+    if (!res) return 'proxy_error';
     if (!res.ok) return [];
     const xml    = new DOMParser().parseFromString(await res.text(), 'text/xml');
     return [...xml.querySelectorAll('item')].slice(0, 6).map(item => {
@@ -1161,6 +1215,16 @@ function renderNewsInPanel(articles, artistName) {
 
   const q = encodeURIComponent(artistName);
 
+  if (articles === 'proxy_error') {
+    newsEl.innerHTML = `
+      <div class="pp-section-header">News &amp; Media</div>
+      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">
+        Could not load news — a network or firewall is blocking the request.
+        <a href="https://news.google.com/search?q=${encodeURIComponent(artistName)}"
+           target="_blank" rel="noopener" style="color:var(--c1)">Search Google News →</a>
+      </div>`;
+    return;
+  }
   if (!articles.length) {
     newsEl.innerHTML = `
       <div class="pp-section-header">News &amp; Media</div>
