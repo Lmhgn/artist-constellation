@@ -168,6 +168,7 @@
     #settings-modal {
       background: var(--surface); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px; padding: 26px; width: 440px; max-width: 92vw;
+      max-height: 85vh; overflow-y: auto;
     }
     #settings-modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
     .modal-desc { font-size: 13px; color: var(--dim); margin-bottom: 14px; line-height: 1.5; }
@@ -281,6 +282,23 @@
     /* genre tags */
     .pp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
     .pp-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: var(--dim); }
+    /* social links */
+    .pp-social-row { display: flex; align-items: center; gap: 14px; padding: 2px 0 12px; }
+    .pp-social-link {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--dim); text-decoration: none; opacity: 0.7;
+      transition: opacity 0.15s, color 0.15s;
+    }
+    .pp-social-link:hover { opacity: 1; color: var(--c2); }
+    /* shows tab toggle — same shape as genre bubbles */
+    .pp-tab-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+    .pp-tab-btn {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+      padding: 4px 11px; font-size: 11px; color: var(--dim); cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pp-tab-btn.active { background: var(--c1); border-color: var(--c1); color: #fff; }
+    .pp-tab-btn:not(.active):hover { border-color: var(--c1); color: var(--text); }
     /* research links */
     .pp-research-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .pp-research-btn {
@@ -303,6 +321,58 @@
       font-size: 11px; color: var(--dim); text-align: center;
       padding: 0 0 10px; line-height: 1.5;
     }
+
+    /* ── SHOWS & EVENTS ── */
+    .pp-section-header {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--dim); padding: 14px 0 8px; margin-top: 4px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .pp-country-select {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text);
+      cursor: pointer; outline: none; text-transform: none; letter-spacing: 0; font-weight: 400;
+    }
+    .pp-country-select:focus { border-color: var(--c1); }
+    .pp-event-item {
+      padding: 9px 10px; background: var(--surface2); border-radius: 8px;
+      margin-bottom: 6px; color: inherit; border: 1px solid transparent;
+      transition: border-color 0.15s, background 0.15s; display: block;
+    }
+    a.pp-event-item { text-decoration: none; }
+    a.pp-event-item:hover { background: rgba(61,142,255,0.08); border-color: var(--c1); }
+    .pp-event-date { font-size: 11px; color: var(--c1); font-weight: 600; margin-bottom: 3px; }
+    .pp-event-venue { font-size: 13px; color: var(--text); font-weight: 500; }
+    .pp-event-city { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .pp-event-subhead {
+      font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 6px; font-weight: 600;
+    }
+
+    /* ── NEWS SECTION ── */
+    .pp-news-item {
+      padding: 9px 10px; background: var(--surface2); border-radius: 8px;
+      margin-bottom: 6px; text-decoration: none; display: block; color: inherit;
+      border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
+    }
+    .pp-news-item:hover { background: rgba(61,142,255,0.08); border-color: var(--c1); }
+    .pp-news-source {
+      font-size: 10px; color: var(--c1); font-weight: 600; margin-bottom: 3px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .pp-news-title { font-size: 12px; color: var(--text); line-height: 1.45; }
+    .pp-news-date { font-size: 10px; color: var(--dim); margin-top: 4px; }
+    .pp-api-prompt {
+      padding: 14px 10px; text-align: center; font-size: 12px; color: var(--dim);
+      background: var(--surface2); border-radius: 8px; line-height: 1.5;
+    }
+    .pp-api-prompt button {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--c1); font-size: 11px; padding: 4px 12px; cursor: pointer;
+      margin-top: 8px; display: inline-block; transition: border-color 0.15s;
+    }
+    .pp-api-prompt button:hover { border-color: var(--c1); }
   </style>
 </head>
 <body>
@@ -374,7 +444,7 @@
     <p class="modal-desc">Keys are stored only in your browser's localStorage — never sent anywhere except the official APIs.</p>
 
     <div class="api-notice">
-      🔑 Don't have the API codes yet? Ask Liam.
+      Keys are pre-filled. You can override any key here with your own.
     </div>
 
     <div class="section-title">Last.FM — Required (similarity data)</div>
@@ -396,6 +466,33 @@
       → Get Spotify credentials at developer.spotify.com/dashboard
     </a>
 
+    <div class="section-title">Setlist.fm — Optional (recent live shows)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-sl-key" placeholder="Setlist.fm API key…">
+    </div>
+    <a class="help-link" href="https://api.setlist.fm/docs/1.0/index.html" target="_blank" rel="noopener">
+      → Register at api.setlist.fm to get a free key
+    </a>
+
+    <div class="section-title">Ticketmaster — Optional (upcoming shows)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-tm-key" placeholder="Ticketmaster Discovery API key…">
+    </div>
+    <a class="help-link" href="https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/" target="_blank" rel="noopener">
+      → Free key at developer.ticketmaster.com
+    </a>
+
+    <div class="section-title">GNews — Optional (News &amp; Media)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-gnews-key" placeholder="GNews.io API key…">
+    </div>
+    <a class="help-link" href="https://gnews.io/" target="_blank" rel="noopener">
+      → Free key at gnews.io (100 requests/day)
+    </a>
+
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
       <button class="btn-primary" id="modal-save">Save &amp; Close</button>
@@ -415,7 +512,6 @@
     </div>
     <button id="pp-close" title="Close">✕</button>
   </div>
-  <div id="pp-section-label">Audience Insights</div>
   <div id="pp-list"></div>
   <div id="pp-footer">
     <button id="pp-explore">Explore Connections →</button>
@@ -431,11 +527,84 @@ const Config = {
   get lfmKey()       { return localStorage.getItem('lfm_key') || ''; },
   get spClientId()   { return localStorage.getItem('sp_id') || ''; },
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
+  get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
+  get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
+  get gnewsKey()      { return localStorage.getItem('gnews_key') || ''; },  // GNews.io
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
   CONCURRENCY  : 4,    // parallel API requests
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CORS PROXY  — three-tier fallback chain
+//
+// Header-forwarding proxies (needed for Setlist.fm x-api-key):
+//   1. corsproxy.io   — primary
+//   2. cors.sh        — secondary (free, forwards all headers)
+//
+// No-header proxies (fine for Google News RSS, Bandsintown):
+//   3. allorigins.win — last resort (does NOT forward custom headers)
+//
+// Windows corporate/school networks or AV software often block corsproxy.io.
+// The chain ensures something works in most environments.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Safely create an AbortSignal with a timeout (AbortSignal.timeout may be
+// undefined in older Edge/Safari builds still found on Windows).
+function _abortTimeout(ms) {
+  try { return AbortSignal.timeout(ms); } catch (_) {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+  }
+}
+
+async function proxyFetch(url, init = {}) {
+  const hasCustomHeaders = init.headers && Object.keys(init.headers).length > 0;
+
+  // ── 1. corsproxy.io — forwards all request headers ──
+  try {
+    const r = await fetch(`https://corsproxy.io/?${url}`, {
+      ...init,
+      signal: _abortTimeout(9000),
+    });
+    if (r.ok) return r;
+    if (r.status >= 400 && r.status !== 429) return r; // real error, stop
+  } catch (e) {
+    if (e.name !== 'AbortError') console.warn('[proxyFetch] corsproxy.io:', e.message);
+  }
+
+  // ── 2. cors.sh — forwards all request headers (good Windows fallback) ──
+  if (hasCustomHeaders) {
+    try {
+      const r = await fetch(`https://proxy.cors.sh/${url}`, {
+        ...init,
+        signal: _abortTimeout(9000),
+      });
+      if (r.ok) return r;
+      if (r.status >= 400 && r.status !== 429) return r;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.warn('[proxyFetch] cors.sh:', e.message);
+    }
+  }
+
+  // ── 3. allorigins.win — no custom header forwarding; skip for auth'd APIs ──
+  if (!hasCustomHeaders) {
+    try {
+      const r = await fetch(
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        { signal: _abortTimeout(9000) },
+      );
+      if (r && r.ok) return r;
+    } catch (e) {
+      console.warn('[proxyFetch] allorigins.win:', e.message);
+    }
+  }
+
+  console.warn('[proxyFetch] all proxies failed for', url);
+  return null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LAST.FM  (CORS-friendly, no OAuth needed)
@@ -569,34 +738,48 @@ async function fetchAudienceInsights(artistName) {
         const mbid = a.id;
         const artistType = a.type || null;
         let startYear = null;
+        let social    = {};
+        const mbHeaders = { headers: { 'User-Agent': 'ArtistConstellation/1.0' } };
 
         if (artistType === 'Person' && mbid) {
-          // Solo artists: find actual debut release year, not birthday
+          // Solo artists: fetch debut release year AND social URLs in parallel
           try {
             await new Promise(r => setTimeout(r, 650)); // respect MB 1 req/s limit
-            const rgRes = await fetch(
-              `https://musicbrainz.org/ws/2/release-group?artist=${mbid}&limit=100&fmt=json`,
-              { headers: { 'User-Agent': 'ArtistConstellation/1.0' } }
-            );
-            const rgData = await rgRes.json();
-            const years = (rgData['release-groups'] || [])
-              .map(g => g['first-release-date'])
-              .filter(d => d && d.length >= 4)
-              .map(d => parseInt(d.slice(0, 4)))
-              .filter(y => y > 1920 && y <= new Date().getFullYear())
-              .sort((a, b) => a - b);
-            startYear = years[0]?.toString() || null;
+            const [rgData, urlRelData] = await Promise.all([
+              fetch(`https://musicbrainz.org/ws/2/release-group?artist=${mbid}&limit=100&fmt=json`, mbHeaders)
+                .then(r => r.json()).catch(() => null),
+              fetch(`https://musicbrainz.org/ws/2/artist/${mbid}?inc=url-rels&fmt=json`, mbHeaders)
+                .then(r => r.json()).catch(() => null),
+            ]);
+            if (rgData) {
+              const years = (rgData['release-groups'] || [])
+                .map(g => g['first-release-date'])
+                .filter(d => d && d.length >= 4)
+                .map(d => parseInt(d.slice(0, 4)))
+                .filter(y => y > 1920 && y <= new Date().getFullYear())
+                .sort((a, b) => a - b);
+              startYear = years[0]?.toString() || null;
+            }
+            social = extractSocialUrls(urlRelData?.relations || []);
           } catch { startYear = null; }
         } else if (artistType && artistType !== 'Person') {
-          // Groups/bands: use formation year from life-span (this is not a birthday)
+          // Groups/bands: formation year from life-span + fetch social URLs
           const begin = a['life-span']?.begin;
           startYear = (begin && begin.length >= 4) ? begin.slice(0, 4) : null;
+          try {
+            await new Promise(r => setTimeout(r, 650));
+            const urlRelData = await fetch(
+              `https://musicbrainz.org/ws/2/artist/${mbid}?inc=url-rels&fmt=json`, mbHeaders
+            ).then(r => r.json());
+            social = extractSocialUrls(urlRelData?.relations || []);
+          } catch { /* social stays {} */ }
         }
 
         return {
           country   : a.country || a.area?.name || null,
           startYear,
           type      : artistType,
+          social,
         };
       } catch { return null; }
     })(),
@@ -611,10 +794,37 @@ async function fetchAudienceInsights(artistName) {
   return result;
 }
 
+function extractSocialUrls(relations) {
+  const social = {};
+  for (const rel of (relations || [])) {
+    const url = rel.url?.resource || '';
+    if (/instagram\.com/i.test(url)  && !social.instagram) social.instagram = url;
+    if (/facebook\.com/i.test(url)   && !social.facebook)  social.facebook  = url;
+    if (/tiktok\.com/i.test(url)     && !social.tiktok)    social.tiktok    = url;
+    if (/twitter\.com|x\.com/i.test(url) && !social.twitter) social.twitter = url;
+  }
+  return social;
+}
+
 function renderAudienceInsights(data, artistName) {
   const { spotify, lfm, mb } = data;
   const fmt = n => (n != null && n > 0) ? n.toLocaleString() : null;
   let html = '';
+
+  // ── Social links (Instagram, Facebook, TikTok, Twitter/X) ────────────────
+  const { instagram, facebook, tiktok, twitter } = mb?.social || {};
+  if (instagram || facebook || tiktok || twitter) {
+    const svgIG  = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`;
+    const svgFB  = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>`;
+    const svgTT  = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>`;
+    const svgTW  = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16M4 20L20 4"/></svg>`;
+    html += '<div class="pp-social-row">';
+    if (instagram) html += `<a class="pp-social-link" href="${instagram}" target="_blank" rel="noopener" title="Instagram">${svgIG}</a>`;
+    if (facebook)  html += `<a class="pp-social-link" href="${facebook}"  target="_blank" rel="noopener" title="Facebook">${svgFB}</a>`;
+    if (tiktok)    html += `<a class="pp-social-link" href="${tiktok}"    target="_blank" rel="noopener" title="TikTok">${svgTT}</a>`;
+    if (twitter)   html += `<a class="pp-social-link" href="${twitter}"   target="_blank" rel="noopener" title="Twitter / X">${svgTW}</a>`;
+    html += '</div>';
+  }
 
   // ── Platform stats grid ──────────────────────────────────────────────────
   const statItems = [];
@@ -662,9 +872,12 @@ function renderAudienceInsights(data, artistName) {
   }
 
   // ── Estimated audience age ────────────────────────────────────────────────
-  const ageValues = estimateAgeDemo(allTags);
+  const _artistKey = artistName.toLowerCase().trim();
+  const _hasOverride = !!ARTIST_DEMO[_artistKey];
+  const ageValues = estimateAgeDemo(allTags, artistName);
   if (ageValues) {
-    html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 8px">Est. Audience Age <span style="font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:0.6">&nbsp;· genre-based estimate</span></div>';
+    const ageNote = _hasOverride ? 'artist-specific estimate' : 'genre-based estimate';
+    html += `<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 8px">Est. Audience Age <span style="font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:0.6">&nbsp;· ${ageNote}</span></div>`;
     AGE_LABELS.forEach((label, i) => {
       const pct = ageValues[i];
       html += `<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:11px;color:var(--dim)">${label}</span><span style="font-size:11px;color:var(--text);font-weight:600">${pct}%</span></div><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--c2);border-radius:2px"></div></div></div>`;
@@ -677,9 +890,6 @@ function renderAudienceInsights(data, artistName) {
   const spLink = spotify?.url || `https://open.spotify.com/search/${q}`;
   html += '<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 6px">Audience Research</div>';
   html += `<div class="pp-research-grid">
-    <a class="pp-research-btn" href="https://sparktoro.com/research/search?q=${q}" target="_blank" rel="noopener">
-      SparkToro<span class="pp-research-sub">Online habits &amp; publications</span>
-    </a>
     <a class="pp-research-btn" href="https://trends.google.com/trends/explore?q=${q}" target="_blank" rel="noopener">
       Google Trends<span class="pp-research-sub">Interest by region &amp; age</span>
     </a>
@@ -723,67 +933,693 @@ async function spSearchArtist(name) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AGE DEMOGRAPHICS  (estimated from genre/audience research)
-// Sources: Spotify demographic research, Nielsen Music, IFPI, MRC Data reports
+// SHOWS  (Setlist.fm — past shows only)
 // ─────────────────────────────────────────────────────────────────────────────
+let _showsData       = { past: null, upcoming: [] };
+let _activeShowsTab  = 'past';
+
+async function fetchPastShows(artistName) {
+  // Returns { past: null|[], upcoming: [] }
+  // null past = key not configured (shows API prompt); [] = key set but no results
+  if (!Config.slKey) return { past: null, upcoming: [] };
+  try {
+    const params = new URLSearchParams({ artistName, p: 1 });
+    const target = `https://api.setlist.fm/rest/1.0/search/setlists?${params}`;
+    const res = await proxyFetch(target, {
+      headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
+    });
+    if (!res) {
+      console.warn('[Setlist.fm] all proxies failed — network/firewall issue?');
+      return { past: 'proxy_error', upcoming: [] };
+    }
+    if (!res.ok) {
+      console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
+      return { past: [], upcoming: [] };
+    }
+    const data  = await res.json();
+    const today = new Date().toISOString().split('T')[0];   // 'YYYY-MM-DD'
+    const all   = (data.setlist || []).map(s => ({
+      date        : normSlDate(s.eventDate),  // normalise to YYYY-MM-DD
+      venue       : s.venue?.name || '—',
+      city        : s.venue?.city?.name || '',
+      country     : s.venue?.city?.country?.name || '',
+      countryCode : s.venue?.city?.country?.code || '',
+      url         : s.url || null,
+    }));
+    return {
+      past     : all.filter(s => s.date <  today),
+      upcoming : all.filter(s => s.date >= today),
+    };
+  } catch (e) {
+    console.warn('[Setlist.fm] fetch error:', e);
+    return { past: [], upcoming: [] };
+  }
+}
+
+// 'dd-mm-yyyy' → 'YYYY-MM-DD'  (safe to compare as strings)
+function normSlDate(ddmmyyyy) {
+  if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return '';
+  const [d, m, y] = ddmmyyyy.split('-');
+  return `${y}-${m}-${d}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING SHOWS  (Bandsintown — no API key required)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchUpcomingShows(artistName) {
+  try {
+    const encoded = encodeURIComponent(artistName);
+    const target  = `https://rest.bandsintown.com/artists/${encoded}/events?app_id=artist-constellation`;
+    const res     = await proxyFetch(target);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(e => ({
+      date        : (e.datetime || '').split('T')[0],   // normalise to YYYY-MM-DD
+      venue       : e.venue?.name || '—',
+      city        : [e.venue?.city, e.venue?.region].filter(Boolean).join(', '),
+      country     : e.venue?.country || '',
+      countryCode : e.venue?.country || '',
+      url         : e.url || null,
+    }));
+  } catch (err) {
+    console.warn('[Bandsintown] fetch error:', err);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING SHOWS  (Ticketmaster Discovery API — optional, excellent UK coverage)
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchUpcomingShowsTM(artistName) {
+  if (!Config.tmKey) return [];
+  try {
+    const params = new URLSearchParams({
+      keyword            : artistName,
+      classificationName : 'music',
+      size               : 10,
+      sort               : 'date,asc',
+      apikey             : Config.tmKey,
+    });
+    // TM Discovery API supports CORS natively — no proxy needed
+    const res = await fetch(
+      `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
+    );
+    if (!res.ok) {
+      console.warn('[Ticketmaster] HTTP', res.status, res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    return (data._embedded?.events || []).map(e => {
+      const venue = e._embedded?.venues?.[0];
+      const cc    = venue?.country?.countryCode || venue?.country?.name || '';
+      return {
+        date        : e.dates?.start?.localDate || '',   // already YYYY-MM-DD
+        venue       : venue?.name || '—',
+        city        : venue?.city?.name || '',
+        country     : venue?.country?.name || '',
+        countryCode : cc,
+        url         : e.url || null,
+      };
+    }).filter(e => e.date);
+  } catch (err) {
+    console.warn('[Ticketmaster] fetch error:', err);
+    return [];
+  }
+}
+
+// Shared date formatter — expects 'YYYY-MM-DD'
+function fmtDate(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const [y, m, d] = yyyymmdd.split('-').map(Number);
+  if (!y || !m || !d) return yyyymmdd;
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${mo[m - 1]} ${y}`;
+}
+
+function renderShowsInPanel(past, upcoming) {
+  _showsData      = { past, upcoming };
+  _activeShowsTab = 'past';
+  const showsEl = document.getElementById('pp-shows-content');
+  if (!showsEl) return;
+
+  showsEl.innerHTML = `
+    <div class="pp-section-header">Shows</div>
+    <div class="pp-tab-toggle">
+      <button class="pp-tab-btn active" data-tab="past"     onclick="switchShowsTab('past')">Past</button>
+      <button class="pp-tab-btn"        data-tab="upcoming" onclick="switchShowsTab('upcoming')">Upcoming</button>
+    </div>
+    <div id="pp-shows-body"></div>`;
+
+  renderShowsBody();
+}
+
+function switchShowsTab(tab) {
+  _activeShowsTab = tab;
+  document.querySelectorAll('.pp-tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  renderShowsBody();
+}
+
+function renderShowsBody() {
+  if (_activeShowsTab === 'past') renderPastShowsBody();
+  else renderUpcomingShowsBody();
+}
+
+function renderPastShowsBody() {
+  const el = document.getElementById('pp-shows-body');
+  if (!el) return;
+
+  if (_showsData.past === null) {
+    el.innerHTML = `
+      <div class="pp-api-prompt">
+        Add a Setlist.fm API key to see past shows.
+        <br><button onclick="openSettings()">Open Settings</button>
+      </div>`;
+    return;
+  }
+  if (_showsData.past === 'proxy_error') {
+    el.innerHTML = `
+      <div class="pp-api-prompt" style="color:var(--dim)">
+        Could not reach Setlist.fm — a network or firewall issue is blocking
+        the request. Try on a different network or VPN.
+      </div>`;
+    return;
+  }
+
+  const countryMap = buildCountryMap(_showsData.past);
+  const defaultCC  = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
+  el.innerHTML = countryDropdown(countryMap, defaultCC) + '<div id="pp-events-list"></div>';
+  renderEventsForCountry(defaultCC);
+  const sel = document.getElementById('pp-country-select');
+  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
+
+function renderUpcomingShowsBody() {
+  const el = document.getElementById('pp-shows-body');
+  if (!el) return;
+
+  const countryMap = buildCountryMap(_showsData.upcoming);
+  // Setlist.fm uses ISO codes ('GB','US'); Bandsintown uses full names — cover both
+  const preferred  = ['GB', 'US', 'United Kingdom', 'United States'];
+  const defaultCC  = preferred.find(c => countryMap.has(c)) || countryMap.keys().next().value || 'all';
+  el.innerHTML = countryDropdown(countryMap, defaultCC) + '<div id="pp-events-list"></div>';
+  renderEventsForCountry(defaultCC);
+  const sel = document.getElementById('pp-country-select');
+  if (sel) sel.addEventListener('change', e => renderEventsForCountry(e.target.value));
+}
+
+// Merge setlist.fm + Ticketmaster (primary) + Bandsintown (supplement).
+// TM comes first (has ticket links + broad coverage), then SLF, then BIT.
+// Deduplicates by date + first 20 chars of venue name.
+function mergeUpcoming(slUpcoming, bitUpcoming, tmUpcoming = []) {
+  const all  = [...tmUpcoming, ...slUpcoming, ...bitUpcoming];
+  const seen = new Set();
+  return all.filter(s => {
+    const key = `${s.date}|${s.venue.slice(0, 20).toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildCountryMap(shows) {
+  const map = new Map();
+  for (const s of (shows || [])) {
+    if (s.countryCode && s.country) map.set(s.countryCode, s.country);
+  }
+  return map;
+}
+
+function countryDropdown(countryMap, defaultCC) {
+  if (countryMap.size <= 1) return '';
+  const opts = [...countryMap.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([cc, name]) =>
+      `<option value="${cc}"${cc === defaultCC ? ' selected' : ''}>${name}</option>`)
+    .join('');
+  return `<select id="pp-country-select" class="pp-country-select" style="margin-bottom:8px">
+    <option value="all">All countries</option>${opts}</select>`;
+}
+
+function renderEventsForCountry(cc) {
+  const el = document.getElementById('pp-events-list');
+  if (!el) return;
+
+  const src   = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
+  const limit = 5;
+  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
+
+  if (!shows.length) {
+    const msg = _activeShowsTab === 'past' ? 'No past shows found.' : 'No upcoming shows found.';
+    el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:8px 0">${msg}</div>`;
+    return;
+  }
+
+  el.innerHTML = shows.map(s => {
+    const loc   = [s.city, s.country].filter(Boolean).join(', ');
+    const inner = `<div class="pp-event-date">${fmtDate(s.date)}</div>
+      <div class="pp-event-venue">${s.venue}</div>
+      <div class="pp-event-city">${loc}</div>`;
+    return s.url
+      ? `<a href="${s.url}" target="_blank" rel="noopener" class="pp-event-item">${inner}</a>`
+      : `<div class="pp-event-item">${inner}</div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
+// Appending "Artist" to every query keeps results music-focused and avoids
+// irrelevant articles for artists with ambiguous names.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchNewsRSS(artistName) {
+  try {
+    const q      = encodeURIComponent(`${artistName} Artist`);
+    const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
+    const res    = await proxyFetch(rssUrl);
+    if (!res) return 'proxy_error';
+    if (!res.ok) {
+      console.warn('[NewsRSS] HTTP', res.status);
+      return 'proxy_error';
+    }
+    const text = await res.text();
+    const xml  = new DOMParser().parseFromString(text, 'text/xml');
+    if (xml.querySelector('parsererror') || !xml.querySelector('channel')) {
+      console.warn('[NewsRSS] Response was not valid RSS (proxy IP may be blocked by Google)');
+      return 'proxy_error';
+    }
+    return [...xml.querySelectorAll('item')].slice(0, 6).map(item => {
+      const rawTitle = item.querySelector('title')?.textContent  || '';
+      const link     = item.querySelector('link')?.textContent   || '';
+      const pubDate  = item.querySelector('pubDate')?.textContent || '';
+      const srcEl    = item.querySelector('source')?.textContent || '';
+      const sep    = rawTitle.lastIndexOf(' - ');
+      const title  = sep > 0 ? rawTitle.slice(0, sep).trim() : rawTitle.trim();
+      const source = srcEl  || (sep > 0 ? rawTitle.slice(sep + 3).trim() : '');
+      return { title, source, url: link, date: pubDate };
+    });
+  } catch (e) {
+    console.warn('[NewsRSS] fetch error:', e);
+    return 'proxy_error';
+  }
+}
+
+function fmtNewsDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d.getDate()} ${mo[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function renderNewsInPanel(articles, artistName) {
+  const newsEl = document.getElementById('pp-news-content');
+  if (!newsEl) return;
+
+  const q = encodeURIComponent(artistName);
+
+  if (articles === 'proxy_error') {
+    newsEl.innerHTML = `
+      <div class="pp-section-header">News &amp; Media</div>
+      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">
+        Could not load news — a network or firewall is blocking the request.
+        <a href="https://news.google.com/search?q=${encodeURIComponent(artistName)}"
+           target="_blank" rel="noopener" style="color:var(--c1)">Search Google News →</a>
+      </div>`;
+    return;
+  }
+  if (!articles.length) {
+    newsEl.innerHTML = `
+      <div class="pp-section-header">News &amp; Media</div>
+      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">No recent news found.</div>`;
+    return;
+  }
+
+  const items = articles.map(a => `
+    <a href="${a.url}" target="_blank" rel="noopener" class="pp-news-item">
+      ${a.source ? `<div class="pp-news-source">${a.source}</div>` : ''}
+      <div class="pp-news-title">${a.title}</div>
+      <div class="pp-news-date">${fmtNewsDate(a.date)}</div>
+    </a>`).join('');
+
+  newsEl.innerHTML = `
+    <div class="pp-section-header">
+      News &amp; Media
+      <a href="https://news.google.com/search?q=${q}" target="_blank" rel="noopener"
+         style="font-size:10px;color:var(--c1);text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500">
+        More →
+      </a>
+    </div>
+    ${items}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AGE DEMOGRAPHICS
+// Two-tier system: artist-specific overrides first, genre-based fallback second.
+// Buckets: [13–17, 18–24, 25–34, 35–44, 45+]
+// Sources: Spotify/YouTube demographic research, Nielsen Music, IFPI, MRC Data,
+//          published audience surveys, and Spotify for Artists public case studies.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Tier 1: artist-specific overrides ────────────────────────────────────────
+const ARTIST_DEMO = {
+  // Global pop
+  'taylor swift':          [14, 30, 28, 18, 10],
+  'billie eilish':         [26, 36, 22,  10,  6],
+  'olivia rodrigo':        [28, 36, 22,   9,  5],
+  'ariana grande':         [20, 34, 26,  13,  7],
+  'dua lipa':              [10, 32, 34,  16,  8],
+  'harry styles':          [16, 34, 28,  14,  8],
+  'ed sheeran':            [ 8, 26, 32,  20, 14],
+  'adele':                 [ 4, 16, 30,  30, 20],
+  'beyoncé':               [ 5, 18, 32,  28, 17],
+  'rihanna':               [ 6, 22, 34,  24, 14],
+  'lady gaga':             [ 7, 20, 32,  26, 15],
+  'katy perry':            [ 6, 18, 32,  28, 16],
+  'justin bieber':         [12, 34, 30,  16,  8],
+  'selena gomez':          [14, 34, 30,  15,  7],
+  'coldplay':              [ 5, 16, 28,  30, 21],
+  'u2':                    [ 2,  8, 16,  30, 44],
+  // Rap / Hip-hop
+  'drake':                 [10, 32, 34,  16,  8],
+  'kendrick lamar':        [ 7, 26, 36,  22,  9],
+  'kanye west':            [ 5, 20, 34,  26, 15],
+  'ye':                    [ 5, 20, 34,  26, 15],
+  'jay-z':                 [ 3, 14, 30,  30, 23],
+  'eminem':                [ 6, 18, 32,  28, 16],
+  'nicki minaj':           [12, 32, 32,  16,  8],
+  'cardi b':               [12, 34, 32,  15,  7],
+  'post malone':           [12, 36, 32,  14,  6],
+  'travis scott':          [16, 38, 28,  12,  6],
+  'tyler the creator':     [12, 34, 34,  14,  6],
+  'frank ocean':           [ 8, 28, 36,  20,  8],
+  'childish gambino':      [ 8, 26, 36,  22,  8],
+  'j. cole':               [ 6, 24, 36,  24, 10],
+  'the weeknd':            [ 8, 28, 36,  20,  8],
+  'lil uzi vert':          [20, 40, 26,  10,  4],
+  'juice wrld':            [22, 42, 24,   8,  4],
+  'doja cat':              [14, 36, 32,  13,  5],
+  'sza':                   [ 8, 28, 36,  20,  8],
+  'lizzo':                 [ 6, 22, 36,  26, 10],
+  'bad bunny':             [10, 30, 34,  18,  8],
+  '21 savage':             [12, 36, 32,  14,  6],
+  'future':                [10, 34, 34,  16,  6],
+  'lil baby':              [14, 38, 30,  13,  5],
+  'gunna':                 [14, 38, 30,  13,  5],
+  // Legacy / classic rock
+  'the beatles':           [ 3,  8, 14,  22, 53],
+  'beatles':               [ 3,  8, 14,  22, 53],
+  'led zeppelin':          [ 3,  8, 16,  27, 46],
+  'pink floyd':            [ 3,  9, 18,  28, 42],
+  'queen':                 [ 5, 12, 20,  28, 35],
+  'david bowie':           [ 4, 10, 20,  30, 36],
+  'fleetwood mac':         [ 3,  8, 16,  26, 47],
+  'eagles':                [ 2,  6, 12,  24, 56],
+  'bruce springsteen':     [ 2,  6, 14,  26, 52],
+  'elton john':            [ 3,  8, 16,  26, 47],
+  'ac/dc':                 [ 4, 12, 22,  30, 32],
+  'bob dylan':             [ 2,  5, 12,  22, 59],
+  'neil young':            [ 2,  5, 11,  22, 60],
+  'the who':               [ 2,  6, 12,  24, 56],
+  'eric clapton':          [ 2,  5, 12,  25, 56],
+  'rod stewart':           [ 2,  5, 12,  24, 57],
+  'rolling stones':        [ 2,  5, 12,  25, 56],
+  'the rolling stones':    [ 2,  5, 12,  25, 56],
+  'abba':                  [ 4, 10, 18,  26, 42],
+  'madonna':               [ 4, 10, 20,  28, 38],
+  'michael jackson':       [ 5, 14, 22,  28, 31],
+  'prince':                [ 4, 10, 20,  28, 38],
+  'whitney houston':       [ 4, 10, 20,  28, 38],
+  'mariah carey':          [ 5, 12, 22,  30, 31],
+  'celine dion':           [ 2,  7, 16,  28, 47],
+  'britney spears':        [ 5, 14, 30,  32, 19],
+  // 90s / 00s rock
+  'nirvana':               [ 6, 18, 30,  28, 18],
+  'pearl jam':             [ 3, 10, 22,  34, 31],
+  'radiohead':             [ 4, 14, 30,  32, 20],
+  'foo fighters':          [ 4, 12, 24,  32, 28],
+  'green day':             [ 7, 18, 30,  28, 17],
+  'blink-182':             [ 7, 18, 34,  28, 13],
+  'weezer':                [ 7, 20, 34,  26, 13],
+  'red hot chili peppers': [ 4, 12, 26,  32, 26],
+  'metallica':             [ 4, 12, 24,  32, 28],
+  'iron maiden':           [ 3, 10, 22,  32, 33],
+  'rage against the machine': [4, 14, 28, 30, 24],
+  'smashing pumpkins':     [ 4, 12, 24,  32, 28],
+  'nine inch nails':       [ 4, 12, 24,  32, 28],
+  'muse':                  [ 5, 16, 30,  30, 19],
+  // Britpop / Madchester / UK legacy indie
+  'oasis':                 [ 4, 12, 22,  34, 28],
+  'blur':                  [ 3, 10, 20,  36, 31],
+  'pulp':                  [ 3,  8, 18,  36, 35],
+  'suede':                 [ 3,  8, 16,  34, 39],
+  'the verve':             [ 3, 10, 18,  34, 35],
+  'manic street preachers':[ 3,  8, 18,  34, 37],
+  'the stone roses':       [ 3, 10, 20,  34, 33],
+  'the smiths':            [ 4, 12, 22,  32, 30],
+  'morrissey':             [ 4, 10, 20,  32, 34],
+  'the cure':              [ 4, 12, 20,  30, 34],
+  'joy division':          [ 3, 10, 18,  32, 37],
+  'new order':             [ 4, 10, 18,  30, 38],
+  'depeche mode':          [ 4, 10, 18,  28, 40],
+  'the jam':               [ 2,  7, 14,  30, 47],
+  'the clash':             [ 2,  8, 16,  28, 46],
+  'elastica':              [ 3,  8, 18,  36, 35],
+  // Modern UK indie / post-punk revival
+  'arctic monkeys':        [ 7, 22, 36,  24, 11],
+  'the 1975':              [12, 36, 30,  15,  7],
+  'idles':                 [ 5, 18, 36,  28, 13],
+  'fontaines d.c.':        [ 7, 24, 38,  22,  9],
+  'shame':                 [ 8, 28, 38,  20,  6],
+  'wet leg':               [ 9, 30, 38,  17,  6],
+  'interpol':              [ 4, 14, 34,  32, 16],
+  'placebo':               [ 5, 14, 28,  32, 21],
+  // Indie / alternative
+  'the national':          [ 3, 12, 32,  34, 19],
+  'bon iver':              [ 4, 16, 36,  28, 16],
+  'fleet foxes':           [ 4, 16, 36,  28, 16],
+  'vampire weekend':       [ 7, 22, 38,  24, 9],
+  'tame impala':           [ 9, 26, 38,  20,  7],
+  'mac demarco':           [ 8, 28, 38,  20,  6],
+  'mitski':                [10, 34, 36,  14,  6],
+  'phoebe bridgers':       [ 9, 30, 38,  16,  7],
+  'boygenius':             [ 9, 28, 38,  18,  7],
+  'japanese breakfast':    [ 7, 26, 38,  22,  7],
+  'caroline polachek':     [ 6, 24, 38,  24,  8],
+  'charli xcx':            [12, 36, 34,  13,  5],
+  'clairo':                [12, 38, 34,  12,  4],
+  'rex orange county':     [10, 36, 36,  13,  5],
+  'rina sawayama':         [ 8, 28, 38,  18,  8],
+  // Electronic
+  'daft punk':             [ 5, 18, 34,  28, 15],
+  'the chemical brothers': [ 3, 12, 26,  32, 27],
+  'aphex twin':            [ 4, 14, 30,  30, 22],
+  'massive attack':        [ 3, 10, 24,  34, 29],
+  'portishead':            [ 3, 10, 24,  34, 29],
+  'burial':                [ 5, 16, 34,  30, 15],
+  'four tet':              [ 5, 16, 34,  28, 17],
+  'bicep':                 [ 7, 24, 38,  22,  9],
+  'bonobo':                [ 5, 16, 34,  28, 17],
+  'caribou':               [ 4, 14, 32,  32, 18],
+  'boards of canada':      [ 4, 14, 30,  32, 20],
+  // Shoegaze / post-punk / goth
+  'my bloody valentine':   [ 4, 14, 28,  32, 22],
+  'slowdive':              [ 4, 14, 28,  32, 22],
+  'ride':                  [ 3, 10, 20,  34, 33],
+  'bauhaus':               [ 3,  9, 18,  30, 40],
+  'sisters of mercy':      [ 3,  9, 18,  30, 40],
+  'siouxsie and the banshees': [3, 9, 18, 30, 40],
+  'the human league':      [ 3,  8, 16,  28, 45],
+  // K-pop
+  'bts':                   [20, 40, 26,   9,  5],
+  'blackpink':             [18, 38, 28,  11,  5],
+  'stray kids':            [20, 42, 24,   9,  5],
+  'twice':                 [18, 40, 26,  11,  5],
+  'aespa':                 [22, 40, 24,   9,  5],
+  'newjeans':              [22, 40, 24,   9,  5],
+};
+
+// ── Tier 2: genre-based fallback ─────────────────────────────────────────────
 const GENRE_DEMO = {
   // Buckets: [13–17, 18–24, 25–34, 35–44, 45+]
-  'pop':               [14, 29, 27, 17, 13],
-  'teen pop':          [28, 32, 22, 11,  7],
-  'dance pop':         [12, 31, 29, 17, 11],
-  'electropop':        [10, 30, 30, 18, 12],
-  'synthpop':          [ 8, 22, 28, 24, 18],
-  'hip hop':           [18, 34, 27, 13,  8],
-  'hip-hop':           [18, 34, 27, 13,  8],
-  'rap':               [19, 34, 26, 13,  8],
-  'trap':              [20, 38, 25, 11,  6],
-  'drill':             [22, 40, 24, 10,  4],
-  'grime':             [18, 36, 26, 13,  7],
-  'r&b':               [10, 25, 30, 20, 15],
-  'soul':              [ 5, 14, 25, 28, 28],
-  'neo soul':          [ 6, 18, 28, 26, 22],
-  'funk':              [ 5, 15, 25, 28, 27],
-  'disco':             [ 4, 12, 22, 28, 34],
-  'rock':              [ 7, 17, 23, 25, 28],
-  'classic rock':      [ 3, 10, 18, 27, 42],
-  'indie rock':        [ 8, 24, 30, 22, 16],
-  'alternative rock':  [10, 25, 28, 22, 15],
-  'alternative':       [10, 25, 28, 22, 15],
-  'indie':             [ 9, 26, 30, 22, 13],
-  'punk':              [12, 28, 28, 20, 12],
-  'post-punk':         [ 7, 20, 28, 25, 20],
-  'emo':               [16, 32, 28, 16,  8],
-  'grunge':            [ 8, 18, 26, 28, 20],
-  'new wave':          [ 5, 14, 22, 28, 31],
-  'metal':             [10, 25, 28, 22, 15],
-  'heavy metal':       [ 8, 20, 27, 25, 20],
-  'hardcore':          [12, 30, 28, 18, 12],
-  'electronic':        [10, 30, 30, 18, 12],
-  'edm':               [14, 35, 28, 14,  9],
-  'house':             [ 8, 28, 32, 20, 12],
-  'techno':            [ 6, 24, 32, 22, 16],
-  'drum and bass':     [10, 28, 31, 20, 11],
-  'ambient':           [ 5, 18, 30, 27, 20],
-  'country':           [ 8, 18, 25, 26, 23],
-  'folk':              [ 5, 15, 25, 27, 28],
-  'singer-songwriter': [ 6, 18, 27, 26, 23],
-  'jazz':              [ 3,  9, 19, 27, 42],
-  'blues':             [ 3,  9, 18, 27, 43],
-  'classical':         [ 3,  8, 16, 26, 47],
-  'gospel':            [ 6, 14, 22, 27, 31],
-  'christian':         [ 8, 18, 24, 25, 25],
-  'worship':           [ 8, 20, 26, 24, 22],
-  'latin':             [12, 26, 29, 20, 13],
-  'reggaeton':         [14, 30, 28, 17, 11],
-  'reggae':            [ 7, 20, 28, 25, 20],
-  'afrobeats':         [12, 30, 30, 18, 10],
-  'k-pop':             [22, 38, 25, 10,  5],
-  'j-pop':             [18, 35, 27, 13,  7],
+  // Pop
+  'pop':                   [14, 29, 27, 17, 13],
+  'teen pop':              [28, 32, 22, 11,  7],
+  'dance pop':             [12, 31, 29, 17, 11],
+  'electropop':            [10, 30, 30, 18, 12],
+  'synthpop':              [ 8, 22, 28, 24, 18],
+  'art pop':               [ 8, 24, 32, 22, 14],
+  'dark pop':              [10, 28, 32, 20, 10],
+  'bedroom pop':           [14, 36, 30, 14,  6],
+  'hyperpop':              [22, 40, 24, 10,  4],
+  'chamber pop':           [ 4, 14, 30, 30, 22],
+  'baroque pop':           [ 4, 14, 28, 30, 24],
+  'sophisti-pop':          [ 3, 10, 20, 30, 37],
+  'new romantic':          [ 3,  9, 16, 28, 44],
+  'twee pop':              [ 7, 22, 34, 24, 13],
+  'power pop':             [ 6, 18, 28, 28, 20],
+  'jangle pop':            [ 5, 16, 28, 30, 21],
+  // Hip-hop / rap
+  'hip hop':               [18, 34, 27, 13,  8],
+  'hip-hop':               [18, 34, 27, 13,  8],
+  'rap':                   [19, 34, 26, 13,  8],
+  'trap':                  [20, 38, 25, 11,  6],
+  'drill':                 [22, 40, 24, 10,  4],
+  'grime':                 [18, 36, 26, 13,  7],
+  'uk hip hop':            [14, 32, 30, 16,  8],
+  'conscious hip hop':     [ 8, 24, 36, 22, 10],
+  'gangsta rap':           [14, 34, 30, 14,  8],
+  'emo rap':               [20, 40, 26,  9,  5],
+  'cloud rap':             [18, 40, 28,  9,  5],
+  'mumble rap':            [18, 40, 28,  9,  5],
+  'east coast hip hop':    [10, 26, 34, 22,  8],
+  'west coast hip hop':    [10, 26, 34, 22,  8],
+  'trap soul':             [10, 30, 34, 18,  8],
+  // R&B / Soul
+  'r&b':                   [10, 25, 30, 20, 15],
+  'alternative r&b':       [10, 28, 34, 20,  8],
+  'contemporary r&b':      [10, 26, 32, 22, 10],
+  'soul':                  [ 5, 14, 25, 28, 28],
+  'neo soul':              [ 6, 18, 28, 26, 22],
+  'motown':                [ 3,  8, 16, 26, 47],
+  'new jack swing':        [ 4, 10, 24, 36, 26],
+  'quiet storm':           [ 3,  8, 18, 32, 39],
+  'funk':                  [ 5, 15, 25, 28, 27],
+  'disco':                 [ 4, 12, 22, 28, 34],
+  // Rock
+  'rock':                  [ 7, 17, 23, 25, 28],
+  'classic rock':          [ 3, 10, 18, 27, 42],
+  'indie rock':            [ 8, 24, 30, 22, 16],
+  'alternative rock':      [10, 25, 28, 22, 15],
+  'alternative':           [10, 25, 28, 22, 15],
+  'indie':                 [ 9, 26, 30, 22, 13],
+  'britpop':               [ 4, 12, 22, 34, 28],
+  'madchester':            [ 3,  9, 18, 34, 36],
+  'post-grunge':           [ 5, 14, 26, 30, 25],
+  'grunge':                [ 7, 16, 26, 30, 21],
+  'shoegaze':              [ 5, 16, 28, 30, 21],
+  'dream pop':             [ 8, 22, 32, 24, 14],
+  'lo-fi':                 [12, 34, 32, 16,  6],
+  'lo-fi indie':           [12, 34, 32, 16,  6],
+  'post-rock':             [ 5, 18, 32, 28, 17],
+  'math rock':             [ 8, 26, 34, 22, 10],
+  'noise rock':            [ 6, 20, 30, 28, 16],
+  'garage rock':           [ 8, 24, 30, 24, 14],
+  'college rock':          [ 6, 22, 30, 26, 16],
+  'heartland rock':        [ 3,  8, 16, 28, 45],
+  'southern rock':         [ 3,  9, 18, 28, 42],
+  'arena rock':            [ 4, 12, 20, 30, 34],
+  'hard rock':             [ 5, 14, 22, 30, 29],
+  'glam rock':             [ 3,  9, 16, 26, 46],
+  'glam metal':            [ 4, 12, 20, 28, 36],
+  // Punk
+  'punk':                  [12, 28, 28, 20, 12],
+  'post-punk':             [ 6, 18, 28, 26, 22],
+  'pop punk':              [14, 30, 30, 18,  8],
+  'skate punk':            [14, 30, 30, 18,  8],
+  'hardcore punk':         [10, 28, 30, 20, 12],
+  'hardcore':              [10, 28, 30, 20, 12],
+  'post-hardcore':         [10, 28, 32, 20, 10],
+  'emo':                   [16, 32, 28, 16,  8],
+  // Metal
+  'metal':                 [10, 25, 28, 22, 15],
+  'heavy metal':           [ 8, 20, 27, 25, 20],
+  'thrash metal':          [ 5, 16, 26, 30, 23],
+  'death metal':           [ 8, 22, 30, 26, 14],
+  'black metal':           [ 7, 20, 30, 26, 17],
+  'doom metal':            [ 5, 16, 28, 30, 21],
+  'metalcore':             [14, 34, 30, 16,  6],
+  'deathcore':             [14, 36, 28, 15,  7],
+  'nu metal':              [ 8, 20, 32, 28, 12],
+  'folk metal':            [ 8, 22, 30, 26, 14],
+  'power metal':           [ 8, 22, 30, 26, 14],
+  // Electronic
+  'electronic':            [10, 30, 30, 18, 12],
+  'edm':                   [14, 35, 28, 14,  9],
+  'house':                 [ 8, 28, 32, 20, 12],
+  'deep house':            [ 6, 22, 34, 26, 12],
+  'tech house':            [ 7, 24, 34, 24, 11],
+  'progressive house':     [ 8, 28, 32, 20, 12],
+  'afro house':            [ 8, 26, 34, 22, 10],
+  'techno':                [ 5, 22, 34, 24, 15],
+  'minimal techno':        [ 4, 18, 34, 28, 16],
+  'drum and bass':         [10, 28, 31, 20, 11],
+  'jungle':                [ 4, 12, 24, 34, 26],
+  'dubstep':               [14, 36, 28, 14,  8],
+  'future bass':           [14, 38, 28, 14,  6],
+  'melodic dubstep':       [12, 36, 30, 16,  6],
+  'trip hop':              [ 4, 12, 26, 34, 24],
+  'downtempo':             [ 4, 14, 28, 32, 22],
+  'chillwave':             [ 8, 26, 36, 22,  8],
+  'synthwave':             [ 8, 24, 34, 24, 10],
+  'retrowave':             [ 7, 22, 34, 26, 11],
+  'vaporwave':             [14, 36, 32, 14,  4],
+  'ambient':               [ 4, 16, 30, 28, 22],
+  'uk garage':             [ 5, 16, 30, 30, 19],
+  'garage':                [ 5, 18, 30, 28, 19],
+  'breakbeat':             [ 5, 16, 28, 30, 21],
+  'industrial':            [ 5, 16, 28, 28, 23],
+  'experimental':          [ 5, 18, 32, 28, 17],
+  'avant-garde':           [ 4, 14, 28, 30, 24],
+  // New wave / synth
+  'new wave':              [ 4, 12, 20, 28, 36],
+  // Country / Americana
+  'country':               [ 7, 18, 25, 26, 24],
+  'contemporary country':  [10, 22, 28, 24, 16],
+  'country pop':           [10, 22, 28, 24, 16],
+  'country rock':          [ 4, 12, 20, 28, 36],
+  'outlaw country':        [ 3,  9, 18, 28, 42],
+  'americana':             [ 4, 12, 24, 30, 30],
+  'alt-country':           [ 5, 16, 28, 28, 23],
+  'bluegrass':             [ 4, 10, 20, 28, 38],
+  'folk':                  [ 4, 14, 26, 28, 28],
+  'singer-songwriter':     [ 6, 18, 28, 26, 22],
+  // Jazz / Blues / Classical
+  'jazz':                  [ 3,  9, 19, 27, 42],
+  'nu jazz':               [ 4, 14, 30, 30, 22],
+  'jazz fusion':           [ 3, 10, 24, 32, 31],
+  'jazz rap':              [ 8, 24, 36, 22, 10],
+  'blues':                 [ 3,  9, 18, 27, 43],
+  'blues rock':            [ 4, 11, 20, 28, 37],
+  'classical':             [ 3,  8, 16, 26, 47],
+  // Gospel / Christian
+  'gospel':                [ 6, 14, 22, 27, 31],
+  'christian':             [ 8, 18, 24, 25, 25],
+  'worship':               [ 8, 20, 26, 24, 22],
+  // Latin / Global
+  'latin':                 [12, 26, 29, 20, 13],
+  'reggaeton':             [14, 30, 28, 17, 11],
+  'latin pop':             [12, 26, 30, 20, 12],
+  'salsa':                 [ 5, 14, 26, 30, 25],
+  'bachata':               [ 8, 20, 30, 26, 16],
+  'cumbia':                [ 6, 16, 26, 28, 24],
+  'bossa nova':            [ 3,  9, 20, 30, 38],
+  'reggae':                [ 6, 18, 28, 26, 22],
+  'dancehall':             [10, 28, 32, 20, 10],
+  'soca':                  [ 8, 22, 30, 26, 14],
+  // African
+  'afrobeats':             [12, 30, 30, 18, 10],
+  'afropop':               [12, 30, 30, 18, 10],
+  'amapiano':              [12, 32, 30, 18,  8],
+  'highlife':              [ 4, 12, 24, 32, 28],
+  // K-pop / J-pop / Anime
+  'k-pop':                 [22, 38, 25, 10,  5],
+  'j-pop':                 [18, 35, 27, 13,  7],
+  'j-rock':                [14, 32, 30, 16,  8],
+  'anime':                 [20, 38, 26, 12,  4],
+  'city pop':              [ 8, 22, 34, 26, 10],
 };
 
 const AGE_LABELS = ['13–17', '18–24', '25–34', '35–44', '45+'];
 
-function estimateAgeDemo(genres) {
+// artistName checked against ARTIST_DEMO first; genres used as fallback.
+function estimateAgeDemo(genres, artistName) {
+  // Tier 1: artist-specific override
+  if (artistName) {
+    const key = artistName.toLowerCase().trim();
+    if (ARTIST_DEMO[key]) return ARTIST_DEMO[key];
+  }
+  // Tier 2: genre-based weighted average
   const buckets = [0, 0, 0, 0, 0];
   let matched = 0;
   for (const genre of genres) {
@@ -1057,11 +1893,13 @@ async function openPlaylistPanel(node) {
     exploreBtn.disabled = true;
   }
 
-  document.getElementById('pp-section-label').textContent = 'Audience Insights';
   document.getElementById('playlist-panel').classList.add('open');
 
   const listEl = document.getElementById('pp-list');
-  listEl.innerHTML = '<div class="pp-loading">Loading insights\u2026</div>';
+  listEl.innerHTML = `
+    <div id="pp-insights-content"><div class="pp-loading">Loading insights\u2026</div></div>
+    <div id="pp-shows-content"><div class="pp-loading">Loading shows\u2026</div></div>
+    <div id="pp-news-content"><div class="pp-loading">Loading news\u2026</div></div>`;
 
   // Fetch artist image + genres on-demand if not already loaded
   if (!node.image && !node._spFetched) {
@@ -1086,15 +1924,34 @@ async function openPlaylistPanel(node) {
     });
   }
 
-  const insights = await fetchAudienceInsights(node.name);
+  // Load all sections in parallel (Bandsintown + Ticketmaster both queried for upcoming)
+  const [insR, pastR, bitR, tmR, newsR] = await Promise.allSettled([
+    fetchAudienceInsights(node.name),
+    fetchPastShows(node.name),
+    fetchUpcomingShows(node.name),
+    fetchUpcomingShowsTM(node.name),
+    fetchNewsRSS(node.name),
+  ]);
   if (_ppNode !== node) return; // panel switched while loading
 
-  const hasData = insights.spotify || insights.lfm || insights.mb;
-  if (!hasData) {
-    listEl.innerHTML = '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
-    return;
+  // Audience insights
+  const insightsEl = document.getElementById('pp-insights-content');
+  if (insightsEl) {
+    const ins     = insR.status === 'fulfilled' ? insR.value : null;
+    const hasData = ins?.spotify || ins?.lfm || ins?.mb;
+    insightsEl.innerHTML = hasData
+      ? renderAudienceInsights(ins, node.name)
+      : '<div class="pp-empty">Could not load audience data.<br>Check your API credentials in Settings.</div>';
   }
-  listEl.innerHTML = renderAudienceInsights(insights, node.name);
+
+  // Shows — split setlist.fm results by date, supplement with Bandsintown + Ticketmaster
+  const sl  = pastR.status === 'fulfilled' ? pastR.value  : { past: null, upcoming: [] };
+  const bit = bitR.status  === 'fulfilled' ? bitR.value   : [];
+  const tm  = tmR.status   === 'fulfilled' ? tmR.value    : [];
+  renderShowsInPanel(sl.past, mergeUpcoming(sl.upcoming, bit, tm));
+
+  // News
+  renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : 'proxy_error', node.name);
 }
 
 function closePlaylistPanel() {
@@ -1170,9 +2027,26 @@ function onLeave(event, d) {
   }
 }
 
+let _clickTimer = null;
+
 function onClick(event, d) {
   event.stopPropagation();
-  openPlaylistPanel(d);
+  if (_clickTimer) {
+    // Second click arrived within 250 ms — treat as double-click: explore directly
+    clearTimeout(_clickTimer);
+    _clickTimer = null;
+    if (d.level > 0 && !isSearching) {
+      closePlaylistPanel();
+      document.getElementById('artist-input').value = d.name;
+      runSearch(d.name);
+    }
+  } else {
+    // First click — wait to see if a second arrives before opening the panel
+    _clickTimer = setTimeout(() => {
+      _clickTimer = null;
+      openPlaylistPanel(d);
+    }, 250);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1376,6 +2250,9 @@ function openSettings() {
   document.getElementById('cfg-lfm-key').value   = Config.lfmKey;
   document.getElementById('cfg-sp-id').value     = Config.spClientId;
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
+  document.getElementById('cfg-sl-key').value    = Config.slKey;
+  document.getElementById('cfg-tm-key').value    = Config.tmKey;
+  document.getElementById('cfg-gnews-key').value = Config.gnewsKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1392,6 +2269,9 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('lfm_key',    document.getElementById('cfg-lfm-key').value.trim());
   localStorage.setItem('sp_id',      document.getElementById('cfg-sp-id').value.trim());
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
+  localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
+  localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
+  localStorage.setItem('gnews_key',  document.getElementById('cfg-gnews-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
@@ -1444,6 +2324,20 @@ function initStars() {
 
   draw();
   window.addEventListener('resize', draw);
+}
+
+// Pre-seed all shared API keys so the app works on first load with no setup.
+// Keys are only written if the user hasn't already stored their own value.
+const _defaults = {
+  lfm_key   : 'cb9ba950706c294c0fbf76e0ba3c6c1e',
+  sp_id     : '7abe92b568544088a4d7e8ebbed3b398',
+  sp_secret : 'b4713f0de67b41188c194939de2c498c',
+  sl_key    : 'C_ljrqZ6fo4FglNYtDk96WjdOoaIMPKNZZ3I',
+  tm_key    : '0oAzkLjM2wYvrhikuqMbcaA8GlniyQCD',
+  gnews_key : 'b584f437a0458dfe7396c649e19e7eb9',
+};
+for (const [k, v] of Object.entries(_defaults)) {
+  if (!localStorage.getItem(k)) localStorage.setItem(k, v);
 }
 
 initD3();
