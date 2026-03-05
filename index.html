@@ -484,6 +484,15 @@
       → Free key at developer.ticketmaster.com
     </a>
 
+    <div class="section-title">GNews — Optional (News &amp; Media)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-gnews-key" placeholder="GNews.io API key…">
+    </div>
+    <a class="help-link" href="https://gnews.io/" target="_blank" rel="noopener">
+      → Free key at gnews.io (100 requests/day)
+    </a>
+
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
       <button class="btn-primary" id="modal-save">Save &amp; Close</button>
@@ -520,6 +529,7 @@ const Config = {
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
   get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
   get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
+  get gnewsKey()      { return localStorage.getItem('gnews_key') || ''; },  // GNews.io
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
@@ -1175,11 +1185,43 @@ function renderEventsForCountry(cc) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
+// NEWS  (GNews.io primary — direct fetch, no proxy needed)
+//        Falls back to Google News RSS via proxy if no GNews key is configured.
+// Appending "Artist" to every query keeps results music-focused and avoids
+// irrelevant articles for artists with ambiguous names.
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchNewsRSS(artistName) {
+  // ── Primary: GNews.io (CORS-friendly, no proxy needed) ──
+  if (Config.gnewsKey) {
+    try {
+      const q   = encodeURIComponent(`${artistName} Artist`);
+      const url = `https://gnews.io/api/v4/search?q=${q}&lang=en&max=6&token=${Config.gnewsKey}`;
+      const res = await fetch(url, { signal: _abortTimeout(9000) });
+      if (!res.ok) {
+        console.warn('[GNews] HTTP', res.status);
+        return [];
+      }
+      const data = await res.json();
+      if (data.errors) {
+        console.warn('[GNews] API error:', data.errors);
+        return [];
+      }
+      return (data.articles || []).map(a => ({
+        title  : a.title       || '',
+        source : a.source?.name || '',
+        url    : a.url         || '',
+        date   : a.publishedAt || '',
+      }));
+    } catch (e) {
+      console.warn('[GNews] fetch error:', e);
+      return [];
+    }
+  }
+
+  // ── Fallback: Google News RSS via CORS proxy (no GNews key configured) ──
   try {
-    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(artistName)}&hl=en&gl=US&ceid=US:en`;
+    const q      = encodeURIComponent(`${artistName} Artist`);
+    const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
     const res    = await proxyFetch(rssUrl);
     if (!res) return 'proxy_error';
     if (!res.ok) {
@@ -1188,21 +1230,15 @@ async function fetchNewsRSS(artistName) {
     }
     const text = await res.text();
     const xml  = new DOMParser().parseFromString(text, 'text/xml');
-
-    // DOMParser returns a parsererror document when the body isn't valid XML.
-    // This happens when Google blocks the proxy IP and returns an HTML error page
-    // with a 200 status — the most common reason news is blank for users.
     if (xml.querySelector('parsererror') || !xml.querySelector('channel')) {
       console.warn('[NewsRSS] Response was not valid RSS (proxy IP may be blocked by Google)');
       return 'proxy_error';
     }
-
     return [...xml.querySelectorAll('item')].slice(0, 6).map(item => {
       const rawTitle = item.querySelector('title')?.textContent  || '';
       const link     = item.querySelector('link')?.textContent   || '';
       const pubDate  = item.querySelector('pubDate')?.textContent || '';
       const srcEl    = item.querySelector('source')?.textContent || '';
-      // Google News title format: "Headline - Source Name"
       const sep    = rawTitle.lastIndexOf(' - ');
       const title  = sep > 0 ? rawTitle.slice(0, sep).trim() : rawTitle.trim();
       const source = srcEl  || (sep > 0 ? rawTitle.slice(sep + 3).trim() : '');
@@ -1957,6 +1993,7 @@ function openSettings() {
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
   document.getElementById('cfg-sl-key').value    = Config.slKey;
   document.getElementById('cfg-tm-key').value    = Config.tmKey;
+  document.getElementById('cfg-gnews-key').value = Config.gnewsKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1975,6 +2012,7 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
   localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
   localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
+  localStorage.setItem('gnews_key',  document.getElementById('cfg-gnews-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
@@ -2028,6 +2066,10 @@ function initStars() {
   draw();
   window.addEventListener('resize', draw);
 }
+
+// Pre-seed the shared GNews key so users don't need to enter it manually.
+// They can still override it in Settings with their own key.
+if (!Config.gnewsKey) localStorage.setItem('gnews_key', 'b584f437a0458dfe7396c649e19e7eb9');
 
 initD3();
 initStars();
