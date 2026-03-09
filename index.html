@@ -1217,12 +1217,12 @@ function renderEventsForCountry(cc) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
-// Appending "Artist" to every query keeps results music-focused and avoids
+// Appending "music" to every query keeps results music-focused and avoids
 // irrelevant articles for artists with ambiguous names.
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchNewsRSS(artistName) {
   try {
-    const q      = encodeURIComponent(`${artistName} Artist`);
+    const q      = encodeURIComponent(`${artistName} music`);
     const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
     const res    = await proxyFetch(rssUrl);
     if (!res) return 'proxy_error';
@@ -1264,22 +1264,23 @@ function renderNewsInPanel(articles, artistName) {
   const newsEl = document.getElementById('pp-news-content');
   if (!newsEl) return;
 
-  const q = encodeURIComponent(artistName);
+  const q      = encodeURIComponent(`${artistName} music`);
+  const gnUrl  = `https://news.google.com/search?q=${q}`;
+  const searchBtn = `
+    <a href="${gnUrl}" target="_blank" rel="noopener"
+       style="display:block;width:100%;text-align:center;padding:8px 0;margin-bottom:10px;
+              background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+              font-size:12px;font-weight:600;color:var(--c1);text-decoration:none;
+              transition:border-color 0.15s,background 0.15s;"
+       onmouseover="this.style.borderColor='var(--c1)';this.style.background='rgba(61,142,255,0.08)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+      Search news and media
+    </a>`;
 
-  if (articles === 'proxy_error') {
+  if (articles === 'proxy_error' || !articles.length) {
     newsEl.innerHTML = `
       <div class="pp-section-header">News &amp; Media</div>
-      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">
-        Could not load news — a network or firewall is blocking the request.
-        <a href="https://news.google.com/search?q=${encodeURIComponent(artistName)}"
-           target="_blank" rel="noopener" style="color:var(--c1)">Search Google News →</a>
-      </div>`;
-    return;
-  }
-  if (!articles.length) {
-    newsEl.innerHTML = `
-      <div class="pp-section-header">News &amp; Media</div>
-      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">No recent news found.</div>`;
+      ${searchBtn}`;
     return;
   }
 
@@ -1291,13 +1292,8 @@ function renderNewsInPanel(articles, artistName) {
     </a>`).join('');
 
   newsEl.innerHTML = `
-    <div class="pp-section-header">
-      News &amp; Media
-      <a href="https://news.google.com/search?q=${q}" target="_blank" rel="noopener"
-         style="font-size:10px;color:var(--c1);text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500">
-        More →
-      </a>
-    </div>
+    <div class="pp-section-header">News &amp; Media</div>
+    ${searchBtn}
     ${items}`;
 }
 
