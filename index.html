@@ -1320,9 +1320,7 @@ function renderNewsInPanel(articles, artistName) {
     </a>`;
 
   if (articles === 'proxy_error' || !articles.length) {
-    newsEl.innerHTML = `
-      <div class="pp-section-header">News &amp; Media</div>
-      ${searchBtn}`;
+    newsEl.innerHTML = searchBtn;
     return;
   }
 
@@ -1333,10 +1331,7 @@ function renderNewsInPanel(articles, artistName) {
       <div class="pp-news-date">${fmtNewsDate(a.date)}</div>
     </a>`).join('');
 
-  newsEl.innerHTML = `
-    <div class="pp-section-header">News &amp; Media</div>
-    ${searchBtn}
-    ${items}`;
+  newsEl.innerHTML = `${searchBtn}${items}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1500,8 +1495,7 @@ function renderMediaSection(node, ins) {
     ...(ins?.spotify?.genres || node.genres || []),
     ...(ins?.lfm?.tags       || []),
   ].filter(t => { const k = t.toLowerCase(); return seen.has(k) ? false : seen.add(k); });
-  const sectionHeader = `<div class="pp-section-header" style="margin-top:4px">Media &amp; Press</div>`;
-  el.innerHTML = sectionHeader + buildMediaGrid(fetchMediaSuggestions(node.name, allGenreTags));
+  el.innerHTML = buildMediaGrid(fetchMediaSuggestions(node.name, allGenreTags));
 }
 
 function buildMediaGrid(outlets) {
@@ -2148,6 +2142,7 @@ async function openPlaylistPanel(node) {
   listEl.innerHTML = `
     <div id="pp-insights-content"><div class="pp-loading">Loading insights\u2026</div></div>
     <div id="pp-shows-content"><div class="pp-loading">Loading shows\u2026</div></div>
+    <div class="pp-section-header">What fans are reading</div>
     <div id="pp-news-content"><div class="pp-loading">Loading news\u2026</div></div>
     <div id="pp-media-content"></div>`;
 
@@ -2590,8 +2585,7 @@ const _defaults = {
   sl_key    : 'C_ljrqZ6fo4FglNYtDk96WjdOoaIMPKNZZ3I',
   tm_key        : '0oAzkLjM2wYvrhikuqMbcaA8GlniyQCD',
   gnews_key     : 'b584f437a0458dfe7396c649e19e7eb9',
-  anthropic_key : 'sk-ant-api03-M2G32wY1iRxmvVTSXrCqgylNpELsZ5F5VzV1t1UffQqokSH8XajW09OKz0YRXK4_4zjxhJo'
-                + 'XuDFZlPlN4IauMQ-HwEI4AAA',
+  anthropic_key : '',
 };
 for (const [k, v] of Object.entries(_defaults)) {
   if (!localStorage.getItem(k)) localStorage.setItem(k, v);
