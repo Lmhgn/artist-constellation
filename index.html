@@ -1226,40 +1226,11 @@ function renderEventsForCountry(cc) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEWS  (GNews.io primary — direct fetch, no proxy needed)
-//        Falls back to Google News RSS via proxy if no GNews key is configured.
+// NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
 // Appending "Artist" to every query keeps results music-focused and avoids
 // irrelevant articles for artists with ambiguous names.
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchNewsRSS(artistName) {
-  // ── Primary: GNews.io (CORS-friendly, no proxy needed) ──
-  if (Config.gnewsKey) {
-    try {
-      const q   = encodeURIComponent(`${artistName} Artist`);
-      const url = `https://gnews.io/api/v4/search?q=${q}&lang=en&max=6&token=${Config.gnewsKey}`;
-      const res = await fetch(url, { signal: _abortTimeout(9000) });
-      if (!res.ok) {
-        console.warn('[GNews] HTTP', res.status);
-        return [];
-      }
-      const data = await res.json();
-      if (data.errors) {
-        console.warn('[GNews] API error:', data.errors);
-        return [];
-      }
-      return (data.articles || []).map(a => ({
-        title  : a.title        || '',
-        source : a.source?.name || '',
-        url    : a.url          || '',
-        date   : a.publishedAt  || '',
-      }));
-    } catch (e) {
-      console.warn('[GNews] fetch error:', e);
-      return [];
-    }
-  }
-
-  // ── Fallback: Google News RSS via CORS proxy (no GNews key configured) ──
   try {
     const q      = encodeURIComponent(`${artistName} Artist`);
     const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
