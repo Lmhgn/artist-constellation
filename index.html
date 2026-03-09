@@ -1137,15 +1137,15 @@ function fmtDate(yyyymmdd) {
 
 function renderShowsInPanel(past, upcoming) {
   _showsData      = { past, upcoming };
-  _activeShowsTab = 'past';
+  _activeShowsTab = 'upcoming';
   const showsEl = document.getElementById('pp-shows-content');
   if (!showsEl) return;
 
   showsEl.innerHTML = `
     <div class="pp-section-header">Shows</div>
     <div class="pp-tab-toggle">
-      <button class="pp-tab-btn active" data-tab="past"     onclick="switchShowsTab('past')">Past</button>
-      <button class="pp-tab-btn"        data-tab="upcoming" onclick="switchShowsTab('upcoming')">Upcoming</button>
+      <button class="pp-tab-btn active" data-tab="upcoming" onclick="switchShowsTab('upcoming')">Upcoming</button>
+      <button class="pp-tab-btn"        data-tab="past"     onclick="switchShowsTab('past')">Past</button>
     </div>
     <div id="pp-shows-body"></div>`;
 
@@ -1160,8 +1160,8 @@ function switchShowsTab(tab) {
 }
 
 function renderShowsBody() {
-  if (_activeShowsTab === 'past') renderPastShowsBody();
-  else renderUpcomingShowsBody();
+  if (_activeShowsTab === 'upcoming') renderUpcomingShowsBody();
+  else renderPastShowsBody();
 }
 
 function renderPastShowsBody() {
