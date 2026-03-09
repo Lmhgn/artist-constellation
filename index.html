@@ -1340,48 +1340,59 @@ function renderNewsInPanel(articles, artistName) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MEDIA SUGGESTIONS  (Claude API — called directly from the browser)
-// Results are cached in localStorage to avoid repeat calls for the same artist.
+// MEDIA SUGGESTIONS  (genre-based local lookup — no API required)
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchMediaSuggestions(artistName, genres) {
-  const cacheKey = `media_outlets_${artistName.toLowerCase()}`;
-  const cached   = localStorage.getItem(cacheKey);
-  if (cached) { try { return JSON.parse(cached); } catch { /* ignore */ } }
+const _OUTLET_DB = [
+  { name: 'Pitchfork',           url: 'https://pitchfork.com',                    type: 'editorial',  description: 'Leading indie music criticism, reviews and news.',                          tags: ['indie','alternative','electronic','hip-hop','experimental','rock','pop','r&b','soul','metal','jazz','folk'] },
+  { name: 'Rolling Stone',       url: 'https://rollingstone.com',                 type: 'magazine',   description: 'Iconic mainstream music, culture and politics coverage.',                   tags: ['rock','pop','hip-hop','r&b','country','alternative','indie','soul','metal'] },
+  { name: 'NME',                 url: 'https://nme.com',                          type: 'magazine',   description: 'UK rock, indie and alternative music news and reviews.',                    tags: ['rock','indie','alternative','pop','punk','electronic','metal','emo'] },
+  { name: 'The Guardian Music',  url: 'https://theguardian.com/music',            type: 'editorial',  description: 'Broad music criticism and features from a respected UK newspaper.',         tags: ['indie','rock','pop','classical','jazz','folk','electronic','world','soul','r&b'] },
+  { name: 'Resident Advisor',    url: 'https://ra.co',                            type: 'editorial',  description: 'The definitive source for electronic music, clubs and DJs.',               tags: ['electronic','dance','techno','house','ambient','edm','club','experimental','drum and bass','garage'] },
+  { name: 'Stereogum',           url: 'https://stereogum.com',                    type: 'blog',       description: 'Indie and alternative music news, reviews and streams.',                    tags: ['indie','alternative','rock','pop','electronic','experimental','folk'] },
+  { name: 'The FADER',           url: 'https://thefader.com',                     type: 'magazine',   description: 'Culture-focused coverage of hip-hop, R&B and emerging sounds.',             tags: ['hip-hop','r&b','rap','pop','electronic','soul','grime','trap','afrobeats'] },
+  { name: 'Kerrang!',            url: 'https://kerrang.com',                      type: 'magazine',   description: 'Premier rock, metal and punk magazine.',                                    tags: ['rock','metal','punk','hardcore','alternative','heavy metal','hard rock','emo','pop-punk'] },
+  { name: 'Metal Hammer',        url: 'https://loudersound.com/metal-hammer',     type: 'magazine',   description: 'In-depth metal coverage from underground to mainstream.',                   tags: ['metal','heavy metal','death metal','black metal','thrash','doom','hardcore','sludge'] },
+  { name: 'Mixmag',              url: 'https://mixmag.net',                       type: 'magazine',   description: 'Dance music and club culture magazine.',                                    tags: ['electronic','dance','house','techno','edm','club','drum and bass','garage','dubstep'] },
+  { name: 'FACT Magazine',       url: 'https://factmag.com',                      type: 'editorial',  description: 'Electronic and experimental music with a focus on forward-thinking sound.',  tags: ['electronic','experimental','hip-hop','ambient','dance','r&b','grime','bass'] },
+  { name: 'Complex Music',       url: 'https://complex.com/music',                type: 'editorial',  description: 'Hip-hop, R&B and pop from a street culture perspective.',                   tags: ['hip-hop','rap','r&b','trap','pop','grime','afrobeats'] },
+  { name: 'HipHopDX',            url: 'https://hiphopdx.com',                     type: 'editorial',  description: 'Hip-hop news, album reviews and artist interviews.',                        tags: ['hip-hop','rap','trap','r&b','grime'] },
+  { name: 'XXL',                 url: 'https://xxlmag.com',                       type: 'magazine',   description: 'Hip-hop magazine covering artists, albums and culture.',                    tags: ['hip-hop','rap','trap','r&b'] },
+  { name: 'Paste Magazine',      url: 'https://pastemagazine.com/music',          type: 'magazine',   description: 'Indie, folk, alternative and Americana coverage.',                          tags: ['indie','folk','alternative','americana','country','pop','rock','singer-songwriter'] },
+  { name: 'American Songwriter', url: 'https://americansongwriter.com',           type: 'magazine',   description: 'Songwriting craft, folk, Americana and country music.',                     tags: ['folk','americana','country','singer-songwriter','indie','roots','bluegrass'] },
+  { name: 'No Depression',       url: 'https://nodepression.com',                 type: 'community',  description: 'Americana, country and roots music community and journalism.',               tags: ['americana','country','folk','bluegrass','roots','singer-songwriter'] },
+  { name: 'DownBeat',            url: 'https://downbeat.com',                     type: 'magazine',   description: 'The definitive jazz magazine, covering all eras and styles.',               tags: ['jazz','blues','soul','funk','fusion','bebop'] },
+  { name: 'All About Jazz',      url: 'https://allaboutjazz.com',                 type: 'community',  description: 'Extensive jazz news, reviews and artist profiles.',                         tags: ['jazz','blues','soul','experimental','fusion'] },
+  { name: 'Gramophone',          url: 'https://gramophone.co.uk',                 type: 'magazine',   description: "World's leading classical music magazine.",                                 tags: ['classical','opera','orchestral','chamber','contemporary classical'] },
+  { name: 'Wax Poetics',         url: 'https://waxpoetics.com',                   type: 'magazine',   description: 'Soul, funk, hip-hop and rare groove culture.',                              tags: ['soul','funk','r&b','hip-hop','jazz','blues','disco'] },
+  { name: 'Songlines',           url: 'https://songlines.co.uk',                  type: 'magazine',   description: 'World music coverage from every corner of the globe.',                      tags: ['world','folk','afrobeats','latin','reggae','global','roots'] },
+  { name: 'Alternative Press',   url: 'https://altpress.com',                     type: 'magazine',   description: 'Pop-punk, emo, metalcore and alternative music.',                           tags: ['pop-punk','emo','punk','metalcore','alternative','hardcore','rock'] },
+  { name: 'DIY Magazine',        url: 'https://diymag.com',                       type: 'magazine',   description: 'UK indie, alternative and emerging artists.',                               tags: ['indie','alternative','rock','pop','punk','folk','electronic'] },
+  { name: 'Billboard',           url: 'https://billboard.com',                    type: 'magazine',   description: 'Chart data, mainstream pop, hip-hop and industry news.',                    tags: ['pop','hip-hop','r&b','country','rock','electronic','latin','dance'] },
+  { name: 'r/indieheads',        url: 'https://reddit.com/r/indieheads',          type: 'community',  description: 'Reddit community for indie music discussion, streams and discovery.',        tags: ['indie','alternative','folk','rock','experimental','pop','electronic'] },
+  { name: 'Last.fm',             url: 'https://last.fm',                          type: 'community',  description: 'Music tracking and community with genre charts and listener stats.',         tags: ['indie','alternative','rock','pop','electronic','metal','folk','hip-hop','jazz'] },
+  { name: 'Reggaeville',         url: 'https://reggaeville.com',                  type: 'editorial',  description: 'Reggae, dancehall and roots news and reviews.',                             tags: ['reggae','dancehall','roots','dub','ska','world'] },
+  { name: 'Clash Magazine',      url: 'https://clashmusic.com',                   type: 'magazine',   description: 'UK music magazine spanning indie, electronic, R&B and beyond.',             tags: ['indie','electronic','r&b','pop','hip-hop','alternative','soul','grime'] },
+  { name: 'The Wire',            url: 'https://thewire.co.uk',                    type: 'magazine',   description: 'Adventurous and experimental music across all genres.',                      tags: ['experimental','jazz','electronic','classical','ambient','avant-garde','noise','drone'] },
+];
 
-  const apiKey = Config.anthropicKey;
-  if (!apiKey) throw new Error('no_key');
+function fetchMediaSuggestions(artistName, genres) {
+  const normGenres = (genres || []).map(g => g.toLowerCase());
 
-  const genreClause = genres?.length ? ` who plays ${genres.slice(0, 4).join(', ')}` : '';
-  const prompt = `For the music artist "${artistName}"${genreClause}, list 6–8 relevant magazines, websites, blogs, radio stations, or online communities where their fans engage with music coverage and discussion. Include a mix of mainstream press and niche/genre-specific outlets. Return ONLY a valid JSON array — no explanation, no markdown — in this exact shape: [{"name":"...","url":"https://...","type":"magazine|blog|community|editorial|radio|streaming","description":"one concise sentence"}]`;
+  const scored = _OUTLET_DB.map(o => {
+    const score = normGenres.length
+      ? o.tags.reduce((n, t) => n + (normGenres.some(g => g.includes(t) || t.includes(g)) ? 1 : 0), 0)
+      : 1;
+    return { score, outlet: o };
+  }).filter(x => x.score > 0);
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method  : 'POST',
-    headers : {
-      'Content-Type'                          : 'application/json',
-      'x-api-key'                             : apiKey,
-      'anthropic-version'                     : '2023-06-01',
-      'anthropic-dangerous-direct-browser-access' : 'true',
-    },
-    body: JSON.stringify({
-      model      : 'claude-haiku-4-5-20251001',
-      max_tokens : 1024,
-      messages   : [{ role: 'user', content: prompt }],
-    }),
-  });
+  scored.sort((a, b) => b.score - a.score);
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `HTTP ${res.status}`);
-  }
+  // Always include at least one broad outlet if nothing matched
+  const results = scored.length
+    ? scored.slice(0, 8).map(x => x.outlet)
+    : _OUTLET_DB.filter(o => ['Pitchfork','Rolling Stone','The Guardian Music','NME','Stereogum','Last.fm'].includes(o.name));
 
-  const data    = await res.json();
-  const text    = data.content?.[0]?.text || '[]';
-  const match   = text.match(/\[[\s\S]*\]/);
-  let   outlets = [];
-  try { outlets = match ? JSON.parse(match[0]) : []; } catch { outlets = []; }
-
-  try { localStorage.setItem(cacheKey, JSON.stringify(outlets)); } catch { /* storage full */ }
-  return outlets;
+  return results;
 }
 
 const MEDIA_BADGE_CLASS = {
@@ -1396,43 +1407,9 @@ const MEDIA_BADGE_CLASS = {
 function renderMediaSection(node) {
   const el = document.getElementById('pp-media-content');
   if (!el) return;
-
-  const cacheKey = `media_outlets_${node.name.toLowerCase()}`;
-  const cached   = localStorage.getItem(cacheKey);
-  let   cached_outlets = null;
-  try { if (cached) cached_outlets = JSON.parse(cached); } catch { /* ignore */ }
-
   const sectionHeader = `<div class="pp-section-header" style="margin-top:4px">Media &amp; Press</div>`;
-
-  if (cached_outlets) {
-    el.innerHTML = sectionHeader + buildMediaGrid(cached_outlets);
-    return;
-  }
-
-  el.innerHTML = `${sectionHeader}
-    <button class="pp-media-btn" id="pp-media-fetch-btn">Find media outlets</button>`;
-
-  document.getElementById('pp-media-fetch-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('pp-media-fetch-btn');
-    btn.disabled    = true;
-    btn.textContent = 'Finding outlets\u2026';
-
-    try {
-      const outlets = await fetchMediaSuggestions(node.name, node.genres);
-      if (document.getElementById('pp-media-content')) {
-        document.getElementById('pp-media-content').innerHTML =
-          sectionHeader + buildMediaGrid(outlets);
-      }
-    } catch (e) {
-      if (document.getElementById('pp-media-fetch-btn')) {
-        btn.disabled    = false;
-        btn.textContent = e.message === 'no_key'
-          ? 'Add an Anthropic API key in Settings'
-          : `Retry — ${e.message || 'could not load suggestions'}`;
-      }
-      console.warn('[MediaSuggest]', e);
-    }
-  });
+  const outlets = fetchMediaSuggestions(node.name, node.genres);
+  el.innerHTML = sectionHeader + buildMediaGrid(outlets);
 }
 
 function buildMediaGrid(outlets) {
