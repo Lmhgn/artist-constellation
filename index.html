@@ -1340,7 +1340,7 @@ function renderNewsInPanel(articles, artistName) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MEDIA SUGGESTIONS  (Claude API via /api/media-suggest worker route)
+// MEDIA SUGGESTIONS  (Claude API — called directly from the browser)
 // Results are cached in localStorage to avoid repeat calls for the same artist.
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchMediaSuggestions(artistName, genres) {
@@ -1348,21 +1348,38 @@ async function fetchMediaSuggestions(artistName, genres) {
   const cached   = localStorage.getItem(cacheKey);
   if (cached) { try { return JSON.parse(cached); } catch { /* ignore */ } }
 
-  const headers = { 'Content-Type': 'application/json' };
-  if (Config.anthropicKey) headers['X-Anthropic-Key'] = Config.anthropicKey;
+  const apiKey = Config.anthropicKey;
+  if (!apiKey) throw new Error('no_key');
 
-  const res = await fetch('/api/media-suggest', {
+  const genreClause = genres?.length ? ` who plays ${genres.slice(0, 4).join(', ')}` : '';
+  const prompt = `For the music artist "${artistName}"${genreClause}, list 6–8 relevant magazines, websites, blogs, radio stations, or online communities where their fans engage with music coverage and discussion. Include a mix of mainstream press and niche/genre-specific outlets. Return ONLY a valid JSON array — no explanation, no markdown — in this exact shape: [{"name":"...","url":"https://...","type":"magazine|blog|community|editorial|radio|streaming","description":"one concise sentence"}]`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method  : 'POST',
-    headers,
-    body    : JSON.stringify({ artistName, genres: genres || [] }),
+    headers : {
+      'Content-Type'                          : 'application/json',
+      'x-api-key'                             : apiKey,
+      'anthropic-version'                     : '2023-06-01',
+      'anthropic-dangerous-direct-browser-access' : 'true',
+    },
+    body: JSON.stringify({
+      model      : 'claude-haiku-4-5-20251001',
+      max_tokens : 1024,
+      messages   : [{ role: 'user', content: prompt }],
+    }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
   }
 
-  const outlets = await res.json();
+  const data    = await res.json();
+  const text    = data.content?.[0]?.text || '[]';
+  const match   = text.match(/\[[\s\S]*\]/);
+  let   outlets = [];
+  try { outlets = match ? JSON.parse(match[0]) : []; } catch { outlets = []; }
+
   try { localStorage.setItem(cacheKey, JSON.stringify(outlets)); } catch { /* storage full */ }
   return outlets;
 }
@@ -1409,7 +1426,9 @@ function renderMediaSection(node) {
     } catch (e) {
       if (document.getElementById('pp-media-fetch-btn')) {
         btn.disabled    = false;
-        btn.textContent = 'Retry — could not load suggestions';
+        btn.textContent = e.message === 'no_key'
+          ? 'Add an Anthropic API key in Settings'
+          : `Retry — ${e.message || 'could not load suggestions'}`;
       }
       console.warn('[MediaSuggest]', e);
     }
