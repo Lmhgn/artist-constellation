@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Artist Constellation v2</title>
+  <title>Artist Constellation</title>
+  <meta name="description" content="Artist Constellation is the artist research platform that allows you to map similar artists and find out more about the music and genres you love.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -377,6 +379,7 @@
       font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px;
       margin-bottom: 6px; font-weight: 600;
     }
+    #pp-events-list { max-height: 340px; overflow-y: auto; }
 
     /* ── NEWS SECTION ── */
     .pp-news-item {
@@ -1050,7 +1053,7 @@ async function fetchUpcomingShowsTM(artistName) {
     const params = new URLSearchParams({
       keyword            : artistName,
       classificationName : 'music',
-      size               : 10,
+      size               : 15,
       sort               : 'date,asc',
       apikey             : Config.tmKey,
     });
@@ -1193,8 +1196,7 @@ function renderEventsForCountry(cc) {
   if (!el) return;
 
   const src   = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
-  const limit = 5;
-  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
+  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, 15);
 
   if (!shows.length) {
     const msg = _activeShowsTab === 'past' ? 'No past shows found.' : 'No upcoming shows found.';
@@ -1215,12 +1217,12 @@ function renderEventsForCountry(cc) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NEWS  (Google News RSS — fetched via CORS proxy, parsed with DOMParser)
-// Appending "Artist" to every query keeps results music-focused and avoids
+// Appending "music" to every query keeps results music-focused and avoids
 // irrelevant articles for artists with ambiguous names.
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchNewsRSS(artistName) {
   try {
-    const q      = encodeURIComponent(`${artistName} Artist`);
+    const q      = encodeURIComponent(`${artistName} music`);
     const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
     const res    = await proxyFetch(rssUrl);
     if (!res) return 'proxy_error';
@@ -1262,22 +1264,23 @@ function renderNewsInPanel(articles, artistName) {
   const newsEl = document.getElementById('pp-news-content');
   if (!newsEl) return;
 
-  const q = encodeURIComponent(artistName);
+  const q      = encodeURIComponent(`${artistName} music`);
+  const gnUrl  = `https://news.google.com/search?q=${q}`;
+  const searchBtn = `
+    <a href="${gnUrl}" target="_blank" rel="noopener"
+       style="display:block;width:100%;text-align:center;padding:8px 0;margin-bottom:10px;
+              background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+              font-size:12px;font-weight:600;color:var(--c1);text-decoration:none;
+              transition:border-color 0.15s,background 0.15s;"
+       onmouseover="this.style.borderColor='var(--c1)';this.style.background='rgba(61,142,255,0.08)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'">
+      Search news and media
+    </a>`;
 
-  if (articles === 'proxy_error') {
+  if (articles === 'proxy_error' || !articles.length) {
     newsEl.innerHTML = `
       <div class="pp-section-header">News &amp; Media</div>
-      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">
-        Could not load news — a network or firewall is blocking the request.
-        <a href="https://news.google.com/search?q=${encodeURIComponent(artistName)}"
-           target="_blank" rel="noopener" style="color:var(--c1)">Search Google News →</a>
-      </div>`;
-    return;
-  }
-  if (!articles.length) {
-    newsEl.innerHTML = `
-      <div class="pp-section-header">News &amp; Media</div>
-      <div style="font-size:12px;color:var(--dim);padding:8px 0 4px">No recent news found.</div>`;
+      ${searchBtn}`;
     return;
   }
 
@@ -1289,13 +1292,8 @@ function renderNewsInPanel(articles, artistName) {
     </a>`).join('');
 
   newsEl.innerHTML = `
-    <div class="pp-section-header">
-      News &amp; Media
-      <a href="https://news.google.com/search?q=${q}" target="_blank" rel="noopener"
-         style="font-size:10px;color:var(--c1);text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500">
-        More →
-      </a>
-    </div>
+    <div class="pp-section-header">News &amp; Media</div>
+    ${searchBtn}
     ${items}`;
 }
 
