@@ -957,9 +957,12 @@ function renderAudienceInsights(data, artistName) {
   // ── Estimated audience age ────────────────────────────────────────────────
   const _artistKey = artistName.toLowerCase().trim();
   const _hasOverride = !!ARTIST_DEMO[_artistKey];
-  const ageValues = estimateAgeDemo(allTags, artistName);
+  const _formedYear = mb?.startYear ? parseInt(mb.startYear, 10) : null;
+  const ageValues = estimateAgeDemo(allTags, artistName, _formedYear);
   if (ageValues) {
-    const ageNote = _hasOverride ? 'artist-specific estimate' : 'genre-based estimate';
+    const ageNote = _hasOverride ? 'artist-specific estimate'
+                  : (_formedYear && _formedYear >= 2016) ? 'genre + recency estimate'
+                  : 'genre-based estimate';
     html += `<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 8px">Est. Audience Age <span style="font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:0.6">&nbsp;· ${ageNote}</span></div>`;
     AGE_LABELS.forEach((label, i) => {
       const pct = ageValues[i];
@@ -1854,20 +1857,92 @@ const GENRE_DEMO = {
   'j-rock':                [14, 32, 30, 16,  8],
   'anime':                 [20, 38, 26, 12,  4],
   'city pop':              [ 8, 22, 34, 26, 10],
+  // Sad / emotional pop (heavy streaming, Gen Z / young millennial)
+  'sad pop':               [18, 40, 28,  10,  4],
+  'alt pop':               [12, 36, 32,  14,  6],
+  'alternative pop':       [12, 36, 32,  14,  6],
+  'indie pop':             [12, 34, 32,  15,  7],
+  'indie folk':            [ 6, 20, 34,  26, 14],
+  'folk pop':              [ 7, 20, 30,  26, 17],
+  'soft pop':              [ 8, 24, 32,  22, 14],
+  'piano pop':             [ 8, 22, 32,  24, 14],
+  'piano rock':            [ 6, 18, 30,  28, 18],
+  'acoustic pop':          [ 8, 24, 32,  22, 14],
+  'acoustic':              [ 6, 18, 28,  28, 20],
+  'sadcore':               [ 8, 28, 36,  20,  8],
+  'slowcore':              [ 4, 14, 32,  32, 18],
+  'dark indie':            [ 8, 26, 36,  22,  8],
+  'indie soul':            [ 8, 24, 34,  24, 10],
+  'melancholic':           [ 6, 22, 34,  26, 12],
+  'emotional':             [12, 32, 32,  16,  8],
+  'midwest emo':           [14, 36, 30,  14,  6],
+  'emo pop':               [16, 36, 28,  14,  6],
+  'pop emo':               [16, 36, 28,  14,  6],
+  'nu-gaze':               [12, 34, 32,  16,  6],
+  'new gaze':              [12, 34, 32,  16,  6],
+  'ambient pop':           [ 6, 20, 34,  26, 14],
+  'dark folk':             [ 5, 16, 30,  30, 19],
+  'singer songwriter':     [ 6, 18, 28,  26, 22],
+  'soft rock':             [ 5, 14, 24,  30, 27],
+  'neo-soul':              [ 6, 18, 28,  26, 22],
+  // TikTok-era / viral
+  'viral pop':             [22, 40, 24,  10,  4],
+  'tiktok':                [24, 40, 22,   9,  5],
+  'gen z':                 [24, 42, 22,   8,  4],
+  // UK-specific
+  'uk pop':                [10, 30, 32,  18, 10],
+  'uk indie':              [ 9, 26, 34,  22,  9],
+  'uk alternative':        [ 9, 26, 32,  22, 11],
+  'british indie':         [ 8, 24, 34,  22, 12],
+  // Spoken word / niche
+  'spoken word':           [ 4, 16, 28,  28, 24],
+  'poetry':                [ 4, 16, 28,  28, 24],
+  // Additional electronic sub-genres
+  'lo-fi hip hop':         [16, 38, 30,  12,  4],
+  'lo-fi beats':           [16, 38, 30,  12,  4],
+  'phonk':                 [18, 40, 26,  11,  5],
+  'rage':                  [20, 40, 26,  10,  4],
+  'plugg':                 [18, 40, 26,  11,  5],
+  'jersey club':           [16, 38, 28,  12,  6],
+  'hypnotic':              [10, 30, 32,  18, 10],
+  'wave':                  [14, 38, 30,  13,  5],
+  'dark wave':             [ 6, 18, 28,  28, 20],
+  'darkwave':              [ 6, 18, 28,  28, 20],
+  'coldwave':              [ 4, 14, 26,  32, 24],
+  'ethereal wave':         [ 5, 16, 28,  30, 21],
+  // Jazz adjacent
+  'jazz pop':              [ 4, 14, 28,  32, 22],
+  'smooth jazz':           [ 2,  6, 16,  32, 44],
+  // Additional folk
+  'contemporary folk':     [ 5, 18, 30,  28, 19],
+  'freak folk':            [ 4, 16, 32,  30, 18],
+  'psych folk':            [ 5, 16, 30,  30, 19],
+  // Misc
+  'escape room':           [ 8, 26, 34,  22, 10],
+  'chillhop':              [12, 36, 32,  14,  6],
+  'study music':           [14, 38, 30,  12,  6],
+  'focus':                 [10, 32, 32,  18,  8],
 };
 
 const AGE_LABELS = ['13–17', '18–24', '25–34', '35–44', '45+'];
 
+// Specificity weight: longer / more-specific genre tags outweigh broad umbrella terms.
+// "sad pop" (2 words) → weight 2; "alternative rock" (2) → weight 2; "indie" (1) → weight 1.
+// Capped at 3 to prevent runaway edge cases.
+function _genreWeight(tag) {
+  return Math.min(tag.split(/[\s\-]+/).filter(Boolean).length, 3);
+}
+
 // artistName checked against ARTIST_DEMO first; genres used as fallback.
-function estimateAgeDemo(genres, artistName) {
+function estimateAgeDemo(genres, artistName, formedYear) {
   // Tier 1: artist-specific override
   if (artistName) {
     const key = artistName.toLowerCase().trim();
     if (ARTIST_DEMO[key]) return ARTIST_DEMO[key];
   }
-  // Tier 2: genre-based weighted average
+  // Tier 2: genre-based weighted average (specificity-weighted)
   const buckets = [0, 0, 0, 0, 0];
-  let matched = 0;
+  let totalWeight = 0;
   for (const genre of genres) {
     const g = genre.toLowerCase().trim();
     let weights = GENRE_DEMO[g];
@@ -1876,10 +1951,30 @@ function estimateAgeDemo(genres, artistName) {
         if (g.includes(key) || key.includes(g)) { weights = val; break; }
       }
     }
-    if (weights) { weights.forEach((v, i) => { buckets[i] += v; }); matched++; }
+    if (weights) {
+      const w = _genreWeight(g);
+      weights.forEach((v, i) => { buckets[i] += v * w; });
+      totalWeight += w;
+    }
   }
-  if (!matched) return null;
-  const avg = buckets.map(b => Math.round(b / matched));
+  if (!totalWeight) return null;
+  let avg = buckets.map(b => b / totalWeight);
+
+  // Tier 3: career recency bias.
+  // Artists who debuted within the last 8 years skew toward younger listeners
+  // because they built their audience on streaming / social media.
+  if (formedYear && formedYear >= 2016) {
+    const yearsAgo = new Date().getFullYear() - formedYear;
+    // Linear bias: 0 years ago → 15% shift youth; 8 years → 0% shift
+    const biasFactor = Math.max(0, (8 - yearsAgo) / 8) * 0.15;
+    // Shift weight from 35–44 and 45+ toward 13–17 and 18–24
+    const shiftFrom = (avg[3] + avg[4]) * biasFactor;
+    avg[0] += shiftFrom * 0.4;
+    avg[1] += shiftFrom * 0.6;
+    avg[3] -= shiftFrom * 0.4;
+    avg[4] -= shiftFrom * 0.6;
+  }
+
   const total = avg.reduce((s, v) => s + v, 0);
   const norm = avg.map(v => Math.round(v * 100 / total));
   const drift = 100 - norm.reduce((s, v) => s + v, 0);
