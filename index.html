@@ -404,6 +404,38 @@
       margin-top: 8px; display: inline-block; transition: border-color 0.15s;
     }
     .pp-api-prompt button:hover { border-color: var(--c1); }
+
+    /* ── MEDIA SUGGESTIONS ── */
+    .pp-media-btn {
+      display: block; width: 100%; text-align: center;
+      padding: 9px 0; margin-bottom: 4px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      font-size: 12px; font-weight: 600; color: var(--c1); cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .pp-media-btn:hover { border-color: var(--c1); background: rgba(61,142,255,0.08); }
+    .pp-media-btn:disabled { opacity: 0.5; cursor: default; }
+    .pp-media-grid { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .pp-media-card {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 11px; background: var(--surface2); border-radius: 8px;
+      border: 1px solid transparent; text-decoration: none; color: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .pp-media-card:hover { border-color: var(--c1); background: rgba(61,142,255,0.06); }
+    .pp-media-card-body { flex: 1; min-width: 0; }
+    .pp-media-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .pp-media-card-desc { font-size: 11px; color: var(--dim); margin-top: 3px; line-height: 1.4; }
+    .pp-media-badge {
+      flex-shrink: 0; font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; padding: 2px 6px; border-radius: 20px; margin-top: 1px;
+    }
+    .pp-media-badge-magazine  { background: rgba(61,142,255,0.15);  color: #3d8eff; }
+    .pp-media-badge-blog      { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .pp-media-badge-community { background: rgba(52,211,153,0.15);  color: #34d399; }
+    .pp-media-badge-editorial { background: rgba(251,146,60,0.15);  color: #fb923c; }
+    .pp-media-badge-radio     { background: rgba(248,113,113,0.15); color: #f87171; }
+    .pp-media-badge-streaming { background: rgba(34,211,238,0.15);  color: #22d3ee; }
   </style>
 </head>
 <body>
@@ -534,6 +566,15 @@
       → Free key at gnews.io (100 requests/day)
     </a>
 
+    <div class="section-title">Anthropic — Optional (Media Suggestions)</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="cfg-anthropic-key" placeholder="Anthropic API key…">
+    </div>
+    <a class="help-link" href="https://console.anthropic.com/" target="_blank" rel="noopener">
+      → Get a key at console.anthropic.com
+    </a>
+
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
       <button class="btn-primary" id="modal-save">Save &amp; Close</button>
@@ -570,7 +611,8 @@ const Config = {
   get spClientSecret(){ return localStorage.getItem('sp_secret') || ''; },
   get slKey()         { return localStorage.getItem('sl_key')    || ''; },  // Setlist.fm
   get tmKey()         { return localStorage.getItem('tm_key')    || ''; },  // Ticketmaster
-  get gnewsKey()      { return localStorage.getItem('gnews_key') || ''; },  // GNews.io
+  get gnewsKey()      { return localStorage.getItem('gnews_key')      || ''; },  // GNews.io
+  get anthropicKey()  { return localStorage.getItem('anthropic_key')   || ''; },  // Anthropic (media suggestions)
   LEVEL1_LIMIT : 22,   // direct similar artists to fetch
   LEVEL2_LIMIT : 8,    // similar artists per L1 artist
   MAX_NODES    : 110,  // hard cap on total nodes
@@ -1298,6 +1340,101 @@ function renderNewsInPanel(articles, artistName) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MEDIA SUGGESTIONS  (Claude API via /api/media-suggest worker route)
+// Results are cached in localStorage to avoid repeat calls for the same artist.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchMediaSuggestions(artistName, genres) {
+  const cacheKey = `media_outlets_${artistName.toLowerCase()}`;
+  const cached   = localStorage.getItem(cacheKey);
+  if (cached) { try { return JSON.parse(cached); } catch { /* ignore */ } }
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (Config.anthropicKey) headers['X-Anthropic-Key'] = Config.anthropicKey;
+
+  const res = await fetch('/api/media-suggest', {
+    method  : 'POST',
+    headers,
+    body    : JSON.stringify({ artistName, genres: genres || [] }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  const outlets = await res.json();
+  try { localStorage.setItem(cacheKey, JSON.stringify(outlets)); } catch { /* storage full */ }
+  return outlets;
+}
+
+const MEDIA_BADGE_CLASS = {
+  magazine  : 'pp-media-badge-magazine',
+  blog      : 'pp-media-badge-blog',
+  community : 'pp-media-badge-community',
+  editorial : 'pp-media-badge-editorial',
+  radio     : 'pp-media-badge-radio',
+  streaming : 'pp-media-badge-streaming',
+};
+
+function renderMediaSection(node) {
+  const el = document.getElementById('pp-media-content');
+  if (!el) return;
+
+  const cacheKey = `media_outlets_${node.name.toLowerCase()}`;
+  const cached   = localStorage.getItem(cacheKey);
+  let   cached_outlets = null;
+  try { if (cached) cached_outlets = JSON.parse(cached); } catch { /* ignore */ }
+
+  const sectionHeader = `<div class="pp-section-header" style="margin-top:4px">Media &amp; Press</div>`;
+
+  if (cached_outlets) {
+    el.innerHTML = sectionHeader + buildMediaGrid(cached_outlets);
+    return;
+  }
+
+  el.innerHTML = `${sectionHeader}
+    <button class="pp-media-btn" id="pp-media-fetch-btn">Find media outlets</button>`;
+
+  document.getElementById('pp-media-fetch-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('pp-media-fetch-btn');
+    btn.disabled    = true;
+    btn.textContent = 'Finding outlets\u2026';
+
+    try {
+      const outlets = await fetchMediaSuggestions(node.name, node.genres);
+      if (document.getElementById('pp-media-content')) {
+        document.getElementById('pp-media-content').innerHTML =
+          sectionHeader + buildMediaGrid(outlets);
+      }
+    } catch (e) {
+      if (document.getElementById('pp-media-fetch-btn')) {
+        btn.disabled    = false;
+        btn.textContent = 'Retry — could not load suggestions';
+      }
+      console.warn('[MediaSuggest]', e);
+    }
+  });
+}
+
+function buildMediaGrid(outlets) {
+  if (!outlets.length) return `<div style="font-size:12px;color:var(--dim);padding:6px 0">No suggestions returned.</div>`;
+  return `<div class="pp-media-grid">${outlets.map(o => {
+    const type      = (o.type || 'editorial').toLowerCase();
+    const badgeCls  = MEDIA_BADGE_CLASS[type] || 'pp-media-badge-editorial';
+    const safeName  = o.name?.replace(/</g, '&lt;') || '';
+    const safeDesc  = o.desc?.replace(/</g, '&lt;') || o.description?.replace(/</g, '&lt;') || '';
+    return `
+      <a href="${o.url || '#'}" target="_blank" rel="noopener" class="pp-media-card">
+        <div class="pp-media-card-body">
+          <div class="pp-media-card-name">${safeName}</div>
+          ${safeDesc ? `<div class="pp-media-card-desc">${safeDesc}</div>` : ''}
+        </div>
+        <span class="pp-media-badge ${badgeCls}">${type}</span>
+      </a>`;
+  }).join('')}</div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AGE DEMOGRAPHICS
 // Two-tier system: artist-specific overrides first, genre-based fallback second.
 // Buckets: [13–17, 18–24, 25–34, 35–44, 45+]
@@ -1923,7 +2060,8 @@ async function openPlaylistPanel(node) {
   listEl.innerHTML = `
     <div id="pp-insights-content"><div class="pp-loading">Loading insights\u2026</div></div>
     <div id="pp-shows-content"><div class="pp-loading">Loading shows\u2026</div></div>
-    <div id="pp-news-content"><div class="pp-loading">Loading news\u2026</div></div>`;
+    <div id="pp-news-content"><div class="pp-loading">Loading news\u2026</div></div>
+    <div id="pp-media-content"></div>`;
 
   // Fetch artist image + genres on-demand if not already loaded
   if (!node.image && !node._spFetched) {
@@ -1976,6 +2114,9 @@ async function openPlaylistPanel(node) {
 
   // News
   renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : 'proxy_error', node.name);
+
+  // Media suggestions
+  renderMediaSection(node);
 }
 
 function closePlaylistPanel() {
@@ -2276,7 +2417,8 @@ function openSettings() {
   document.getElementById('cfg-sp-secret').value = Config.spClientSecret;
   document.getElementById('cfg-sl-key').value    = Config.slKey;
   document.getElementById('cfg-tm-key').value    = Config.tmKey;
-  document.getElementById('cfg-gnews-key').value = Config.gnewsKey;
+  document.getElementById('cfg-gnews-key').value     = Config.gnewsKey;
+  document.getElementById('cfg-anthropic-key').value = Config.anthropicKey;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -2295,7 +2437,8 @@ document.getElementById('modal-save').addEventListener('click', () => {
   localStorage.setItem('sp_secret',  document.getElementById('cfg-sp-secret').value.trim());
   localStorage.setItem('sl_key',     document.getElementById('cfg-sl-key').value.trim());
   localStorage.setItem('tm_key',     document.getElementById('cfg-tm-key').value.trim());
-  localStorage.setItem('gnews_key',  document.getElementById('cfg-gnews-key').value.trim());
+  localStorage.setItem('gnews_key',     document.getElementById('cfg-gnews-key').value.trim());
+  localStorage.setItem('anthropic_key', document.getElementById('cfg-anthropic-key').value.trim());
   _spToken = null; _spExpiry = 0;  // invalidate cached token
   closeSettings();
 });
