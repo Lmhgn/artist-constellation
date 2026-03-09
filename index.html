@@ -1319,7 +1319,7 @@ function renderNewsInPanel(articles, artistName) {
       Search news and media
     </a>`;
 
-  const header = `<div class="pp-section-header">News &amp; Media</div>`;
+  const header = `<div style="padding:8px 0 2px"><div class="pp-section-label" style="padding:0 0 6px">News &amp; Media</div></div>`;
 
   if (articles === 'proxy_error' || !articles.length) {
     newsEl.innerHTML = header + searchBtn;
