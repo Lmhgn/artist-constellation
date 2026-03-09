@@ -982,14 +982,9 @@ async function fetchPastShows(artistName) {
   if (!Config.slKey) return { past: null, upcoming: [] };
   try {
     const params = new URLSearchParams({ artistName, p: 1 });
-    const target = `https://api.setlist.fm/rest/1.0/search/setlists?${params}`;
-    const res = await proxyFetch(target, {
+    const res = await fetch(`https://api.setlist.fm/rest/1.0/search/setlists?${params}`, {
       headers: { 'x-api-key': Config.slKey, 'Accept': 'application/json' },
     });
-    if (!res) {
-      console.warn('[Setlist.fm] all proxies failed — network/firewall issue?');
-      return { past: 'proxy_error', upcoming: [] };
-    }
     if (!res.ok) {
       console.warn('[Setlist.fm] HTTP', res.status, res.statusText);
       return { past: [], upcoming: [] };
@@ -1136,14 +1131,7 @@ function renderPastShowsBody() {
       </div>`;
     return;
   }
-  if (_showsData.past === 'proxy_error') {
-    el.innerHTML = `
-      <div class="pp-api-prompt" style="color:var(--dim)">
-        Could not reach Setlist.fm — a network or firewall issue is blocking
-        the request. Try on a different network or VPN.
-      </div>`;
-    return;
-  }
+
 
   const countryMap = buildCountryMap(_showsData.past);
   const defaultCC  = countryMap.has('GB') ? 'GB' : (countryMap.keys().next().value || 'all');
