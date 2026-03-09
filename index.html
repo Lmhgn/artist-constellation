@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Artist Constellation v2</title>
+  <title>Artist Constellation</title>
+  <meta name="description" content="Artist Constellation is the artist research platform that allows you to map similar artists and find out more about the music and genres you love.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -377,6 +379,7 @@
       font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px;
       margin-bottom: 6px; font-weight: 600;
     }
+    #pp-events-list { max-height: 340px; overflow-y: auto; }
 
     /* ── NEWS SECTION ── */
     .pp-news-item {
@@ -1050,7 +1053,7 @@ async function fetchUpcomingShowsTM(artistName) {
     const params = new URLSearchParams({
       keyword            : artistName,
       classificationName : 'music',
-      size               : 10,
+      size               : 15,
       sort               : 'date,asc',
       apikey             : Config.tmKey,
     });
@@ -1193,8 +1196,7 @@ function renderEventsForCountry(cc) {
   if (!el) return;
 
   const src   = _activeShowsTab === 'past' ? (_showsData.past || []) : (_showsData.upcoming || []);
-  const limit = 5;
-  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, limit);
+  const shows  = src.filter(s => !cc || cc === 'all' || s.countryCode === cc).slice(0, 15);
 
   if (!shows.length) {
     const msg = _activeShowsTab === 'past' ? 'No past shows found.' : 'No upcoming shows found.';
