@@ -2185,9 +2185,9 @@ async function openPlaylistPanel(node) {
   if (_ppNode !== node) return; // panel switched while loading
 
   // Audience insights
-  const insightsEl = document.getElementById('pp-insights-content');
+  const ins         = insR.status === 'fulfilled' ? insR.value : null;
+  const insightsEl  = document.getElementById('pp-insights-content');
   if (insightsEl) {
-    const ins     = insR.status === 'fulfilled' ? insR.value : null;
     const hasData = ins?.spotify || ins?.lfm || ins?.mb;
     insightsEl.innerHTML = hasData
       ? renderAudienceInsights(ins, node.name)
