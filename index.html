@@ -1490,12 +1490,18 @@ const MEDIA_BADGE_CLASS = {
   streaming : 'pp-media-badge-streaming',
 };
 
-function renderMediaSection(node) {
+function renderMediaSection(node, ins) {
   const el = document.getElementById('pp-media-content');
   if (!el) return;
+  // Merge Spotify genres + Last.fm tags, deduplicated — gives far richer signal
+  // than node.genres alone, which often arrives empty or after this call fires.
+  const seen = new Set();
+  const allGenreTags = [
+    ...(ins?.spotify?.genres || node.genres || []),
+    ...(ins?.lfm?.tags       || []),
+  ].filter(t => { const k = t.toLowerCase(); return seen.has(k) ? false : seen.add(k); });
   const sectionHeader = `<div class="pp-section-header" style="margin-top:4px">Media &amp; Press</div>`;
-  const outlets = fetchMediaSuggestions(node.name, node.genres);
-  el.innerHTML = sectionHeader + buildMediaGrid(outlets);
+  el.innerHTML = sectionHeader + buildMediaGrid(fetchMediaSuggestions(node.name, allGenreTags));
 }
 
 function buildMediaGrid(outlets) {
@@ -2197,8 +2203,8 @@ async function openPlaylistPanel(node) {
   // News
   renderNewsInPanel(newsR.status === 'fulfilled' ? newsR.value : 'proxy_error', node.name);
 
-  // Media suggestions
-  renderMediaSection(node);
+  // Media suggestions — pass insights so we have both Spotify genres + Last.fm tags
+  renderMediaSection(node, ins);
 }
 
 function closePlaylistPanel() {
