@@ -2500,8 +2500,10 @@ const _defaults = {
   sp_id     : '7abe92b568544088a4d7e8ebbed3b398',
   sp_secret : 'b4713f0de67b41188c194939de2c498c',
   sl_key    : 'C_ljrqZ6fo4FglNYtDk96WjdOoaIMPKNZZ3I',
-  tm_key    : '0oAzkLjM2wYvrhikuqMbcaA8GlniyQCD',
-  gnews_key : 'b584f437a0458dfe7396c649e19e7eb9',
+  tm_key        : '0oAzkLjM2wYvrhikuqMbcaA8GlniyQCD',
+  gnews_key     : 'b584f437a0458dfe7396c649e19e7eb9',
+  anthropic_key : 'sk-ant-api03-M2G32wY1iRxmvVTSXrCqgylNpELsZ5F5VzV1t1UffQqokSH8XajW09OKz0YRXK4_4zjxhJo'
+                + 'XuDFZlPlN4IauMQ-HwEI4AAA',
 };
 for (const [k, v] of Object.entries(_defaults)) {
   if (!localStorage.getItem(k)) localStorage.setItem(k, v);
